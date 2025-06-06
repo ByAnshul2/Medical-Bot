@@ -6,769 +6,1030 @@
 <html>
 
 <head>
-  <title>Chatbot</title>
-  <!-- Load jQuery first -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-  <!-- Then load Bootstrap CSS and JS -->
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css">
-
-  <!-- Custom CSS -->
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style111.css')}}">
-  <style>
-    .action-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: rgba(0, 0, 0, 0.3);
-      border: none;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .action-btn:hover {
-      background-color: rgba(0, 0, 0, 0.5);
-      transform: scale(1.05);
-    }
-
-    .action-dropdown {
-      background-color: rgba(0, 0, 0, 0.8);
-      border: none;
-      border-radius: 8px;
-      padding: 8px 0;
-      min-width: 200px;
-      transform: translateY(-100%);
-      top: -5px !important;
-      bottom: auto !important;
-      left: 0 !important;
-      right: auto !important;
-    }
-
-    .dropdown-item {
-      color: white;
-      padding: 8px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-    }
-
-    .dropdown-item:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-
-    .dropdown-item i {
-      width: 20px;
-      text-align: center;
-    }
-
-    /* Typing indicator styles */
-    .typing-indicator {
-      display: none;
-    }
-
-    .msg_cotainer {
-      max-width: 80%;
-      white-space: normal;
-      word-wrap: break-word;
-    }
-
-    .msg_cotainer_send {
-      max-width: 80%;
-      white-space: normal;
-      word-wrap: break-word;
-    }
-
-    /* Style for medical help response */
-    .msg_cotainer br {
-      display: block;
-      content: "";
-      margin-top: 5px;
-    }
-
-    /* Voice Input Button Styles */
-    .voice-btn {
-      background-color: rgba(255, 255, 255, 0.1);
-      border: none;
-      border-radius: 20px;
-      padding: 8px 15px;
-      color: white;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 5px;
-      width: 40px;
-      height: 40px;
-    }
-
-    .voice-btn:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    .voice-btn i {
-      font-size: 18px;
-    }
-
-    .voice-btn.recording {
-      background-color: #ff4d4d;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0% {
-        transform: scale(1);
-      }
-
-      50% {
-        transform: scale(1.1);
-      }
-
-      100% {
-        transform: scale(1);
-      }
-    }
-
-    /* Adjust spacing for input group */
-    .input-group-prepend {
-      margin-right: 5px;
-    }
-
-    .type_msg {
-      margin-left: 5px;
-      border-radius: 20px !important;
-      color: white !important;
-    }
-
-    .type_msg::placeholder {
-      color: rgba(255, 255, 255, 0.7) !important;
-    }
-    
-    #medicalHelpForm {
-      background-color: rgba(0, 0, 0, 0.2);
-      padding: 10px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-
-    #medicalHelpForm .form-group {
-      margin-bottom: 5px;
-    }
-
-    #medicalHelpForm .btn {
-      margin-right: 5px;
-    }
-
-    .medical-help-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 10px;
-    }
-
-    /* Upload Button Styles */
-    .upload-btn-wrapper {
-      padding-top: 0;
-      position: relative;
-      display: inline-block;
-    }
-
-    .upload-btn {
-      background-color: rgba(255, 255, 255, 0.1);
-      border: none;
-      border-radius: 20px;
-      padding: 8px 15px;
-      color: white;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-    }
-
-    .upload-btn:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    .upload-btn i {
-      font-size: 18px;
-    }
-
-    .input-group {
-      background-color: rgba(0, 0, 0, 0.3);
-      border-radius: 25px;
-      padding: 5px;
-    }
-
-    .send_btn {
-      border-radius: 20px !important;
-      padding: 0 20px;
-    }
-
-    /* Loading Animation Styles */
-    .loader {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.8rem;
-      padding: 1rem;
-    }
-
-    .loader div {
-      background-color: rgb(34, 34, 34);
-      box-shadow: inset 2px 2px 10px black;
-      border-radius: 100%;
-      height: 1rem;
-      width: 1rem;
-    }
-
-    .box-load1 {
-      animation: brighten 1.2s infinite;
-    }
-
-    .box-load2 {
-      animation: brighten 1.2s infinite;
-      animation-delay: 0.2s;
-    }
-
-    .box-load3 {
-      animation: brighten 1.2s infinite;
-      animation-delay: 0.4s;
-    }
-
-    @keyframes brighten {
-      100% {
-        background-color: rgb(165, 165, 165);
-        box-shadow: none;
-      }
-    }
-
-    /* Loading Container Styles */
-    .loading-container {
-      display: none;
-      margin-bottom: 1rem;
-      position: relative;
-      z-index: 10;
-      width: 100%;
-    }
-
-    .loaderRectangle {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 0 3px;
-      padding: 10px 20px;
-      background: rgba(0, 0, 0, 0.2) !important;
-      border-radius: 15px;
-      margin-left: 10px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      width: 100px;
-      height: 40px;
-    }
-
-    .loaderRectangle div {
-      width: 8px;
-      height: 16px;
-      animation: .9s ease-in-out infinite;
-      background: #FFFFFF;
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-      border-radius: 2px;
-    }
-
-    .loaderRectangle div:nth-child(1) {
-      animation-name: rectangleOneAnim;
-      animation-delay: 0.1s;
-    }
-
-    @keyframes rectangleOneAnim {
-      0% {
-        height: 15px;
-      }
-
-      50% {
-        height: 30px;
-      }
-
-      100% {
-        height: 15px;
-      }
-    }
-
-    .loaderRectangle div:nth-child(2) {
-      animation-name: rectangleTwoAnim;
-      animation-delay: 0.2s;
-    }
-
-    @keyframes rectangleTwoAnim {
-      0% {
-        height: 15px;
-      }
-
-      50% {
-        height: 40px;
-      }
-
-      100% {
-        height: 15px;
-      }
-    }
-
-    .loaderRectangle div:nth-child(3) {
-      animation-name: rectangleThreeAnim;
-      animation-delay: 0.3s;
-    }
-
-    @keyframes rectangleThreeAnim {
-      0% {
-        height: 15px;
-      }
-
-      50% {
-        height: 50px;
-      }
-
-      100% {
-        height: 15px;
-      }
-    }
-
-    .loaderRectangle div:nth-child(4) {
-      animation-name: rectangleFourAnim;
-      animation-delay: 0.4s;
-    }
-
-    @keyframes rectangleFourAnim {
-      0% {
-        height: 15px;
-      }
-
-      50% {
-        height: 40px;
-      }
-
-      100% {
-        height: 15px;
-      }
-    }
-
-    .loaderRectangle div:nth-child(5) {
-      animation-name: rectangleFiveAnim;
-      animation-delay: 0.5s;
-    }
-
-    @keyframes rectangleFiveAnim {
-      0% {
-        height: 15px;
-      }
-
-      50% {
-        height: 30px;
-      }
-
-      100% {
-        height: 15px;
-      }
-    }
-
-    /* Welcome Message Styles */
-    .welcome-message {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(255, 255, 255, 0.1);
-      padding: 5px 15px;
-      border-radius: 20px;
-      animation: slideIn 0.5s ease-out;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }
-
-    .welcome-text {
-      color: #4caf50;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translate(20px, -50%);
-      }
-
-      to {
-        opacity: 1;
-        transform: translate(0, -50%);
-      }
-    }
-
-    /* Action Dropdown Styles */
-    .dropdown-menu.action-dropdown {
-      background-color: rgba(0, 0, 0, 0.8) !important;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 0;
-      min-width: 200px;
-      transform: translateY(-100%);
-      top: -5px !important;
-      bottom: auto !important;
-      left: 0 !important;
-      right: auto !important;
-    }
-
-    .dropdown-menu.action-dropdown .dropdown-item {
-      color: white;
-      padding: 8px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-    }
-
-    .dropdown-menu.action-dropdown .dropdown-item:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-
-    .dropdown-menu.action-dropdown .dropdown-item i {
-      width: 20px;
-      text-align: center;
-    }
-
-    /* Specific styles for medical help results */
-    .medical-help-result {
-      display: block;
-      width: 100%;
-    }
-
-    .medical-help-result h3 {
-      font-size: 18px;
-      font-weight: bold;
-      margin: 0 0 10px 0;
-      color: #ffffff;
-    }
-
-    .medical-help-result h4 {
-      font-size: 16px;
-      font-weight: bold;
-      margin: 10px 0;
-      color: #ffffff;
-    }
-
-    .medical-help-result p {
-      margin: 5px 0;
-    }
-
-    /* Medical Report Analysis Styles */
-    .medical-report-analysis {
-      background-color: rgba(0, 0, 0, 0.2);
-      border-radius: 12px;
-      padding: 15px;
-      margin: 10px 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      max-width: 95%;
-    }
-
-    .medical-report-analysis .quick-summary {
-      font-size: 14px;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-    }
-
-    .medical-report-analysis h4,
-    .medical-report-analysis strong {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 12px 0 5px 0;
-      color: #58cc71;
-      display: block;
-    }
-
-    .medical-report-analysis p {
-      font-size: 13px;
-      line-height: 1.5;
-      margin: 5px 0 10px 0;
-      white-space: normal;
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    .medical-report-analysis br {
-      display: block;
-      content: "";
-      margin-top: 8px;
-    }
-
-    .medical-report-analysis ul {
-      padding-left: 20px;
-      margin: 5px 0;
-    }
-
-    .medical-report-analysis li {
-      font-size: 13px;
-      margin-bottom: 5px;
-    }
-
-    .medical-report-section {
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .medical-report-section:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-    }
-
-    .medical-icon {
-      color: #58cc71;
-      margin-right: 5px;
-    }
-
-    /* Highlight important values in medical reports */
-    .high-value {
-      color: #ff6b6b;
-      font-weight: bold;
-    }
-
-    .low-value {
-      color: #74b9ff;
-      font-weight: bold;
-    }
-
-    .normal-value {
-      color: #55efc4;
-      font-weight: bold;
-    }
-
-    .specialist-name {
-      margin: 5px 0 15px 0 !important;
-    }
-
-    .hospital-list {
-      display: block;
-      margin-top: 10px;
-    }
-
-    .hospital-item {
-      display: block;
-      margin-bottom: 15px;
-      padding-left: 5px;
-    }
-
-    .hospital-number {
-      margin: 0 0 5px 0 !important;
-      font-weight: 500;
-    }
-
-    .hospital-address {
-      margin: 0 0 5px 15px !important;
-      opacity: 0.9;
-    }
-
-    .hospital-rating {
-      margin: 0 0 5px 15px !important;
-      opacity: 0.9;
-    }
-
-    /* Pre-formatted medical report styles */
-    .medical-report-pre {
-      background-color: rgba(0, 0, 0, 0.2);
-      border-radius: 12px;
-      margin: 10px 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 95%;
-    }
-
-    .medical-report-pre pre {
-      font-family: inherit;
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 15px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      color: rgba(255, 255, 255, 0.9);
-      background-color: transparent;
-      border: none;
-      margin: 0;
-      overflow: visible;
-    }
-
-    .medical-report-pre strong,
-    .medical-report-pre b {
-      color: #58cc71;
-      font-weight: 600;
-    }
-  </style>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- Bootstrap JS Bundle with Popper -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style111.css') }}" />
+    <title>Medical Chatbot</title>
+    <!-- Load jQuery first -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Then load Bootstrap CSS and JS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style111.css')}}">
+    <style>
+        /* Full height and responsive layout */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #7c5dc4, #3e9aaf, #98e4c2);
+
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .container-fluid {
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            max-width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .row {
+            height: 100%;
+            margin: 0;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .col-md-10,
+        .col-xl-8 {
+            height: 100%;
+            padding: 0;
+        }
+
+        /* Glassmorphism effect */
+        .card {
+            height: 100%;
+            border-radius: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-header {
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .card-body {
+            background: transparent;
+
+        }
+
+        .card-footer {
+            background: rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Adjust column width for different screen sizes */
+        @media (min-width: 1200px) {
+            .col-xl-8 {
+                flex: 0 0 85%;
+                max-width: 85%;
+            }
+        }
+
+        @media (min-width: 992px) and (max-width: 1199px) {
+            .col-xl-8 {
+                flex: 0 0 90%;
+                max-width: 90%;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991px) {
+            .col-md-10 {
+                flex: 0 0 95%;
+                max-width: 95%;
+            }
+        }
+
+        @media (max-width: 767px) {
+
+            .col-md-10,
+            .col-xl-8 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+
+            .msg_cotainer,
+            .msg_cotainer_send {
+                max-width: 85%;
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+
+            .user_info {
+                padding-top: 5px;
+
+            }
+
+            .user_info span {
+                font-size: 16px;
+            }
+
+            .user_info p {
+                font-size: 13px;
+            }
+
+            .faq-btn {
+                font-size: 13px;
+                padding: 6px 12px;
+            }
+
+            .input-group {
+                padding: 3px;
+            }
+        }
+
+        .chat {
+            height: 100%;
+        }
+
+        .card {
+            height: 100%;
+            border-radius: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            flex-shrink: 0;
+        }
+
+        .card-body {
+            height: auto;
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .card-footer {
+            flex-shrink: 0;
+            padding: 2px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background-color: rgba(0, 0, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        .action-dropdown {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 200px;
+            transform: translateY(-100%);
+            top: -5px !important;
+            bottom: auto !important;
+            left: 0 !important;
+            right: auto !important;
+        }
+
+        .dropdown-item {
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Typing indicator styles */
+        .typing-indicator {
+            display: none;
+        }
+
+        .msg_cotainer {
+            max-width: 85%;
+            white-space: normal;
+            word-wrap: break-word;
+            padding: 12px 18px;
+            background-color: #5bd055;
+            color: black;
+            border-radius: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .msg_cotainer_send {
+            max-width: 85%;
+            white-space: normal;
+            word-wrap: break-word;
+            padding: 12px 18px;
+            background-color: rgb(225, 227, 227);
+            ;
+            color: black;
+            border-radius: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Style for medical help response */
+        .msg_cotainer br {
+            display: block;
+            content: "";
+            margin-top: 5px;
+        }
+
+        /* Voice Input Button Styles */
+        .voice-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            width: 40px;
+            height: 40px;
+        }
+
+        .voice-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .voice-btn i {
+            font-size: 18px;
+        }
+
+        .voice-btn.recording {
+            background-color: #ff4d4d;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Adjust spacing for input group */
+        .input-group-prepend {
+            margin-right: 5px;
+        }
+
+        .type_msg {
+            margin-left: 5px;
+            border-radius: 20px !important;
+            color: white !important;
+        }
+
+        .type_msg::placeholder {
+            color: rgba(255, 255, 255, 0.7) !important;
+        }
+
+        /* FAQ Buttons Styles */
+        .faq-buttons-container {
+            width: 100%;
+            padding: 10px 5px;
+            margin-top: 10px;
+        }
+
+        .faq-buttons-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .faq-btn {
+            background-color: rgba(0, 0, 0, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-btn:hover {
+            background-color: rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .faq-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        .faq-buttons-container.fade-out {
+            animation: fadeOut 0.5s forwards;
+        }
+
+        #medicalHelpForm {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        #medicalHelpForm .form-group {
+            margin-bottom: 5px;
+        }
+
+        #medicalHelpForm .btn {
+            margin-right: 5px;
+        }
+
+        .medical-help-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        /* Upload Button Styles */
+        .upload-btn-wrapper {
+            padding-top: 0;
+            position: relative;
+            display: inline-block;
+        }
+
+        .upload-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .upload-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .upload-btn i {
+            font-size: 18px;
+        }
+
+        .input-group {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 25px;
+            padding: 5px;
+        }
+
+        .send_btn {
+            border-radius: 20px !important;
+            padding: 0 20px;
+        }
+
+        /* Loading Animation Styles */
+        .loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            padding: 1rem;
+        }
+
+        .loader div {
+            background-color: rgb(34, 34, 34);
+            box-shadow: inset 2px 2px 10px black;
+            border-radius: 100%;
+            height: 1rem;
+            width: 1rem;
+        }
+
+        /* Loading Rectangle Animation */
+        .loaderRectangle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0 3px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.2) !important;
+            border-radius: 15px;
+            margin-left: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100px;
+            height: 40px;
+        }
+
+        .loaderRectangle div {
+            width: 8px;
+            height: 16px;
+            animation: .9s ease-in-out infinite;
+            background: #FFFFFF;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
+        }
+
+        .loaderRectangle div:nth-child(1) {
+            animation-name: rectangleOneAnim;
+            animation-delay: 0.1s;
+        }
+
+        @keyframes rectangleOneAnim {
+            0% {
+                height: 15px;
+            }
+
+            50% {
+                height: 30px;
+            }
+
+            100% {
+                height: 15px;
+            }
+        }
+
+        .loaderRectangle div:nth-child(2) {
+            animation-name: rectangleTwoAnim;
+            animation-delay: 0.2s;
+        }
+
+        @keyframes rectangleTwoAnim {
+            0% {
+                height: 15px;
+            }
+
+            50% {
+                height: 40px;
+            }
+
+            100% {
+                height: 15px;
+            }
+        }
+
+        .loaderRectangle div:nth-child(3) {
+            animation-name: rectangleThreeAnim;
+            animation-delay: 0.3s;
+        }
+
+        @keyframes rectangleThreeAnim {
+            0% {
+                height: 15px;
+            }
+
+            50% {
+                height: 50px;
+            }
+
+            100% {
+                height: 15px;
+            }
+        }
+
+        .loaderRectangle div:nth-child(4) {
+            animation-name: rectangleFourAnim;
+            animation-delay: 0.4s;
+        }
+
+        @keyframes rectangleFourAnim {
+            0% {
+                height: 15px;
+            }
+
+            50% {
+                height: 40px;
+            }
+
+            100% {
+                height: 15px;
+            }
+        }
+
+        .loaderRectangle div:nth-child(5) {
+            animation-name: rectangleFiveAnim;
+            animation-delay: 0.5s;
+        }
+
+        @keyframes rectangleFiveAnim {
+            0% {
+                height: 15px;
+            }
+
+            50% {
+                height: 30px;
+            }
+
+            100% {
+                height: 15px;
+            }
+        }
+
+        /* Med Alert Popup Styles */
+        .med-alert-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .med-alert-content {
+            position: relative;
+            background-color: #1e1e1e;
+            max-width: 600px;
+            margin: 50px auto;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            animation: slideDown 0.3s ease;
+        }
+
+        /* Responsive adjustment for mobile */
+        @media (max-width: 767px) {
+            .med-alert-content {
+                margin: 20px 15px;
+                max-width: calc(100% - 30px);
+            }
+        }
+
+        .med-alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px 10px 0 0;
+        }
+
+        .med-alert-header h3 {
+            margin: 0;
+            color: #2196f3;
+            font-size: 1.4rem;
+        }
+
+        .med-alert-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            font-weight: bold;
+            color: #777;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .med-alert-close:hover {
+            color: #fff;
+        }
+
+        .med-alert-body {
+            padding: 20px;
+        }
+
+        .med-alert-warning {
+            background-color: rgba(33, 150, 243, 0.1);
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #fff;
+            opacity: 0.9;
+        }
+
+        .medicine-item {
+            background-color: rgba(33, 150, 243, 0.08);
+            border: 1px solid #2196f3;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .medicine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .medicine-header h5 {
+            margin: 0;
+            font-size: 16px;
+            color: #2196f3;
+        }
+
+        .medicine-remove-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .med-alert-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .main-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .main-buttons button {
+            flex: 1;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        /* Responsive styles for form rows on mobile */
+        @media (max-width: 767px) {
+            .form-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+
+        /* Style for form controls in the popup */
+        .med-alert-body input {
+            background-color: #2a2a2a;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 5px;
+        }
+
+        .med-alert-body label {
+            color: #eee;
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* Add more space between messages */
+        .d-flex.justify-content-start.mb-4,
+        .d-flex.justify-content-end.mb-4 {
+            margin-bottom: 1.8rem !important;
+        }
+
+        .user_info {
+            margin-top: auto;
+            margin-bottom: auto;
+            margin-left: 15px;
+            position: relative;
+            width: 100%;
+            background: transparent;
+        }
+
+        .user_info span {
+            font-size: 20px;
+            color: white;
+        }
+
+        .user_info p {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Welcome Message Styles */
+        .welcome-message {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+            animation: slideIn 0.5s ease-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .welcome-text {
+            color: #5bd055;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(20px, -50%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(0, -50%);
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <div class="container-fluid h-100">
-    <div class="row justify-content-center h-100">
-      <div class="col-md-10 col-xl-8 chat" ">
+    <div class="container-fluid h-100">
+        <div class="row justify-content-center h-100">
+            <div class="col-md-10 col-xl-8 chat">
+                <div class="card">
+                    <div class="card-header msg_head">
+                        <div class="d-flex bd-highlight">
+                            <div class="img_cont">
+                                <img src="static/images/medical-team.png" class="rounded-circle user_img" />
+                                <span class="online_icon"></span>
+                            </div>
+                            <div class="user_info">
+                                <span>Medical Chatbot</span>
+                                <p>Ask me anything!</p>
+                                {% if session.get('user_name') %}
+                                <div class="welcome-message">
+                                    <span class="welcome-text">Welcome, {{ session.get('user_name')|upper }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div id="messageFormeight" class="card-body msg_card_body">
+                        <div id="chat-response" style="white-space: pre-wrap;"></div>
+                        <!-- Initial welcome message -->
+                        <div class="d-flex justify-content-start mb-4">
+                            <div class="img_cont_msg">
+                                <img src="static/images/nurse.png" class="rounded-circle user_img_msg" />
+                            </div>
+                            <div class="msg_cotainer">
+                                {% if session.get('is_guest') %} Welcome! You're chatting as a
+                                guest. Feel free to ask me any medical questions. {% else %}
+                                Welcome back, {{ session.get('user_name')|upper }}! How can I
+                                help you today? {% endif %}
+                            </div>
+                        </div>
 
-        <div class=" card">
-        <div class="card-header msg_head">
-          <div class="d-flex bd-highlight">
-            <div class="img_cont">
-              <img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img" />
-              <!-- <img src="https://www.prdistribution.com/spirit/uploads/pressreleases/2019/newsreleases/d83341deb75c4c4f6b113f27b1e42cd8-chatbot-florence-already-helps-thousands-of-patients-to-remember-their-medication.png" class="rounded-circle user_img"> -->
-              <span class="online_icon"></span>
-            </div>
-            <div class="user_info">
-              <span>Medical Chatbot</span>
-              <p>Ask me anything!</p>
-              {% if session.get('user_name') %}
-              <div class="welcome-message">
-                <span class="welcome-text">Welcome, {{ session.get('user_name')|upper }}</span>
-              </div>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        <div id="messageFormeight" class="card-body msg_card_body">
-          <div id="chat-response" style="white-space: pre-wrap;"></div>
-          <!-- Initial welcome message -->
-          <div class="d-flex justify-content-start mb-4">
-            <div class="img_cont_msg">
-              <img src="static/images/nurse.png" class="rounded-circle user_img_msg" />
-            </div>
-            <div class="msg_cotainer">
-              {% if session.get('is_guest') %} Welcome! You're chatting as a
-              guest. Feel free to ask me any medical questions. {% else %}
-              Welcome back, {{ session.get('user_name')|upper }}! How can I
-              help you today? {% endif %}
-            </div>
-          </div>
-        </div>
-        <div class="card-footer">
-          <!-- Medical Help Form (Initially Hidden) -->
-          <div id="medicalHelpForm" class="w-100" style="display: none">
-            <div class="form-group mb-0">
-              <input type="text" id="diseaseInput" class="form-control type_msg"
-                placeholder="Enter your condition or disease..." />
-            </div>
-            <div class="form-group mb-0">
-              <input type="text" id="locationInput" class="form-control type_msg"
-                placeholder="Enter your location..." />
-            </div>
-            <button type="button" id="searchMedicalHelp" class="btn btn-primary btn-sm mt-2">
-              Search
-            </button>
-            <button type="button" id="cancelMedicalHelp" class="btn btn-secondary btn-sm mt-2">
-              Cancel
-            </button>
-          </div>
+                        <!-- FAQ Quick Action Buttons - Only shown once on load -->
+                        <div id="faqButtonsContainer" class="faq-buttons-container d-flex justify-content-center mb-4">
+                            <div class="faq-buttons-wrapper">
+                                <button class="faq-btn" id="generalTipsBtn"><span>General Tips</span></button>
+                                <button class="faq-btn" id="medAlertBtn"><span>Medication Reminder</span></button>
 
-          <!-- Message Input Group -->
-          <form id="messageArea" class="input-group">
-            <!-- Actions Dropdown -->
-            <div class="input-group-prepend">
-              <div class="dropdown">
-                <button type="button" class="action-btn" data-toggle="dropdown" aria-haspopup="true"
-                  aria-expanded="false">
-                  <i class="fas fa-plus"></i>
-                </button>
-                <div class="dropdown-menu action-dropdown">
-                  <a class="dropdown-item" href="#" id="attachFileBtn">
-                    <i class="fas fa-paperclip"></i> Attach File
-                  </a>
-                  <a class="dropdown-item" href="#" id="findHelpBtn">
-                    <i class="fas fa-hospital"></i> Find Help
-                  </a>
-                  <a class="dropdown-item" href="https://www.1mg.com/online-doctor-consultation" target="_blank"
-                    id="consultBtn">
-                    <i class="fas fa-user-md"></i> Consult Doctor
-                  </a>
+                                <button class="faq-btn"
+                                    data-question="What should I do in a medical emergency?Someone needs urgent medical help. What should I do in case of high blood pressure, low sugar, heart attack, unconsciousness, or if CPR is needed?"><span>Emergency
+                                        Help</span></button>
+                                <button class="faq-btn" id="summaryGeneratorBtn"><span>Summary Generator</span></button>
+                                <button class="faq-btn" id="findDoctorsBtn"><span>Find Nearby Doctors</span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <!-- Medical Help Form (Initially Hidden) -->
+                        <div id="medicalHelpForm" class="w-100" style="display: none">
+                            <div class="form-group mb-0">
+                                <input type="text" id="diseaseInput" class="form-control type_msg"
+                                    placeholder="Enter your condition or disease..." />
+                            </div>
+                            <div class="form-group mb-0">
+                                <input type="text" id="locationInput" class="form-control type_msg"
+                                    placeholder="Enter your location..." />
+                            </div>
+                            <button type="button" id="searchMedicalHelp" class="btn btn-primary btn-sm mt-2">
+                                Search
+                            </button>
+                            <button type="button" id="cancelMedicalHelp" class="btn btn-secondary btn-sm mt-2">
+                                Cancel
+                            </button>
+                        </div>
 
+                        <!-- Message Input Group -->
+                        <form id="messageArea" class="input-group">
+                            <!-- Actions Dropdown -->
+                            <div class="input-group-prepend">
+                                <div class="dropdown">
+                                    <button type="button" class="action-btn" data-toggle="dropdown" aria-haspopup="true"
+                                        aria-expanded="false">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <div class="dropdown-menu action-dropdown">
+                                        <a class="dropdown-item" href="#" id="attachFileBtn">
+                                            <i class="fas fa-paperclip"></i> Attach File
+                                        </a>
+                                        <a class="dropdown-item" href="#" id="findHelpBtn">
+                                            <i class="fas fa-hospital"></i> Find Help
+                                        </a>
+                                        <a class="dropdown-item" href="https://www.1mg.com/online-doctor-consultation"
+                                            target="_blank" id="consultBtn">
+                                            <i class="fas fa-user-md"></i> Consult Doctor
+                                        </a>
+                                        <a class="dropdown-item" href="#" id="dropdownMedAlertBtn">
+                                            <i class="fas fa-pills"></i> Med Alert
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Voice Input Button -->
+                            <div class="input-group-prepend">
+                                <button type="button" class="voice-btn" id="voiceBtn">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+
+                            <!-- Hidden File Input -->
+                            <input type="file" id="fileUpload" name="file" style="display: none" />
+
+                            <!-- Message Input -->
+                            <input type="text" id="text" name="msg" placeholder="Type your message..."
+                                autocomplete="off" class="form-control type_msg" required />
+
+                            <!-- Send Button -->
+                            <div class="input-group-append">
+                                <button type="submit" id="send" class="input-group-text send_btn">
+                                    <i class="fas fa-location-arrow"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-              </div>
             </div>
-
-            <!-- Voice Input Button -->
-            <div class="input-group-prepend">
-              <button type="button" class="voice-btn" id="voiceBtn">
-                <i class="fas fa-microphone"></i>
-              </button>
-            </div>
-
-            <!-- Hidden File Input -->
-            <input type="file" id="fileUpload" name="file" style="display: none" />
-
-            <!-- Message Input -->
-            <input type="text" id="text" name="msg" placeholder="Type your message..." autocomplete="off"
-              class="form-control type_msg" required />
-
-            <!-- Send Button -->
-            <div class="input-group-append">
-              <button type="submit" id="send" class="input-group-text send_btn">
-                <i class="fas fa-location-arrow"></i>
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
     </div>
-  </div>
-  </div>
 
-  <script>
-    $(document).ready(function () {
-      console.log("Chat page loaded and ready");
+    <!-- Med Alert Popup Structure -->
+    <div id="medAlertPopup" class="med-alert-popup">
+        <div class="med-alert-content">
+            <div class="med-alert-header">
+                <h3>💊 Medication Reminder</h3>
+                <button class="med-alert-close">&times;</button>
+            </div>
+            <div class="med-alert-body">
+                <p class="med-alert-warning"><strong>Note:</strong> First-time emails might go to your spam folder.
+                    Please check and mark as "not spam" to ensure future deliveries.</p>
 
-      // Initialize dropdowns
-      $(".dropdown-toggle").dropdown();
+                <form id="medReminderForm">
+                    <div class="form-group">
+                        <label for="popupPatientEmail">Your Email</label>
+                        <input type="email" id="popupPatientEmail" class="form-control"
+                            placeholder="Enter email for reminders" required>
+                    </div>
 
-      // Track uploaded document IDs
-      let uploadedDocIds = [];
+                    <div id="popupMedicinesContainer">
+                        <div class="medicine-item">
+                            <div class="medicine-header">
+                                <h5>Medication 1</h5>
+                                <button type="button" class="medicine-remove-btn">&times;</button>
+                            </div>
+                            <div class="form-group">
+                                <label>Medicine Name</label>
+                                <input type="text" class="form-control med-name" placeholder="e.g., Aspirin" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Dosage</label>
+                                <input type="text" class="form-control med-dosage" placeholder="e.g., 1 tablet morning"
+                                    required>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label>Reminder Time</label>
+                                    <input type="time" class="form-control med-time" value="08:00" required>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label>Duration (days)</label>
+                                    <input type="number" class="form-control med-days" min="1" value="7" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-      // Initialize conversation state
-      const conversationState = {
-        history: [],
-        currentContext: {
-          lastQuestion: "",
-          history: []
-        }
-      };
+                    <div class="med-alert-actions">
+                        <button type="button" id="addMedicineBtn" class="btn btn-secondary">Add Medicine</button>
+                        <div class="main-buttons">
+                            <button type="button" id="cancelMedAlert" class="btn btn-danger">Cancel</button>
+                            <button type="submit" id="scheduleMedAlert" class="btn btn-primary">Schedule
+                                Reminders</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-      // Function to show loading animation
-      function showLoadingAnimation() {
-        console.log("Showing loading animation...");
-        const $container = $(".loading-container");
-        console.log("Loading container initial state:", {
-          display: $container.css("display"),
-          opacity: $container.css("opacity"),
-          visibility: $container.css("visibility")
-        });
+    <script>
+        $(document).ready(function () {
+            console.log("Chat page loaded and ready");
 
-        // Create a new loading message element
-        const loadingMessage = `
+            // Initialize dropdowns
+            $(".dropdown-toggle").dropdown();
+
+            // Check if FAQ buttons have been shown before
+            const faqButtonsShown = localStorage.getItem('faqButtonsShown');
+            if (faqButtonsShown) {
+                // Hide FAQ buttons if they've been shown before
+                $("#faqButtonsContainer").hide();
+            } else {
+                // Mark as shown for future sessions
+                localStorage.setItem('faqButtonsShown', 'true');
+            }
+
+            // Track uploaded document IDs
+            let uploadedDocIds = [];
+
+            // Initialize conversation state
+            const conversationState = {
+                history: [],
+                currentContext: {
+                    lastQuestion: "",
+                    history: []
+                }
+            };
+
+            // Function to show loading animation
+            function showLoadingAnimation() {
+                console.log("Showing loading animation...");
+
+                // Create a new loading message element
+                const loadingMessage = `
           <div class="d-flex justify-content-start mb-4">
             <div class="img_cont_msg">
               <img src="static/images/nurse.png" class="rounded-circle user_img_msg">
@@ -785,665 +1046,799 @@
           </div>
         `;
 
-        // Append the loading message to the chat
-        $("#messageFormeight").append(loadingMessage);
+                // Append the loading message to the chat
+                $("#messageFormeight").append(loadingMessage);
 
+                // Scroll to the bottom of the chat
+                const chatBody = document.getElementById("messageFormeight");
+                chatBody.scrollTop = chatBody.scrollHeight;
 
-
-
-
-
-
-
-        // Scroll to the bottom of the chat
-        const chatBody = document.getElementById("messageFormeight");
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        console.log("Loading animation added to chat");
-      }
-
-      function hideLoadingAnimation() {
-        console.log("Hiding loading animation...");
-
-        // Remove the loading message
-        const loadingElements = $("#messageFormeight .loaderRectangle").parent().parent();
-        loadingElements.remove();
-
-        console.log("Loading animation removed from chat");
-      }
-
-      // Function to test loading animation
-      function testLoadingAnimation() {
-        console.log("Testing loading animation...");
-
-        // Log initial state
-        const $container = $(".loading-container");
-        console.log("Initial test state:", {
-          display: $container.css('display'),
-          opacity: $container.css('opacity'),
-          visibility: $container.css('visibility'),
-          dimensions: {
-            width: $container.width(),
-            height: $container.height(),
-            offset: $container.offset()
-          }
-        });
-
-        // Show the animation
-        showLoadingAnimation();
-
-        // Check state after 1 second
-        setTimeout(() => {
-          console.log("Mid-test state:", {
-            display: $container.css('display'),
-            opacity: $container.css('opacity'),
-            visibility: $container.css('visibility')
-          });
-        }, 1000);
-
-        // Hide after 3 seconds
-        setTimeout(() => {
-          hideLoadingAnimation();
-          console.log("Test complete");
-        }, 3000);
-      }
-
-      // Add test button for debugging
-      // Initialize loading container styles
-      $(".loading-container").css({
-        'position': 'relative',
-        'z-index': '1000',
-        'background': 'transparent',
-        'pointer-events': 'none',
-        'margin': '10px 0',
-        'min-height': '50px',
-        'display': 'none',
-        'opacity': '0',
-        'transition': 'opacity 0.2s ease-in-out',
-        'visibility': 'hidden'
-      });
-
-      // Handle form submission
-      $("#messageArea").on("submit", function (event) {
-        event.preventDefault();
-
-        const date = new Date();
-        const hour = date.getHours();
-        const minute = date.getMinutes();
-        const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
-        var rawText = $("#text").val().trim();
-
-        // Don't submit empty messages
-        if (!rawText) return;
-
-        console.log("Sending message:", rawText);
-
-        // Update conversation state
-        conversationState.currentContext = {
-          lastQuestion: rawText,
-          history: conversationState.history.slice(-5) // Keep last 5 exchanges
-        };
-
-        // Disable input and button while waiting for response
-        $("#text").prop("disabled", true);
-        $("#send").prop("disabled", true);
-
-        var userHtml = '<div class="d-flex justify-content-end mb-4">' +
-          '<div class="msg_cotainer_send">' + rawText +
-          '<span class="msg_time_send">' + str_time + "</span></div>" +
-          '<div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
-
-        $("#text").val("");
-        $("#messageFormeight").append(userHtml);
-        $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
-
-        // Show loading animation AFTER the user message is added
-        showLoadingAnimation();
-
-        $.ajax({
-          url: "/get",
-          type: "POST",
-          data: {
-            msg: rawText,
-            context: JSON.stringify(conversationState.currentContext)
-          },
-          success: function (data) {
-            console.log("Response received:", data);
-
-            // Hide loading animation
-            hideLoadingAnimation();
-
-            // Enable input and button
-            $("#text").prop("disabled", false);
-            $("#send").prop("disabled", false);
-
-            // Update conversation state
-            conversationState.history.push({
-              question: rawText,
-              answer: data.response || data
-            });
-
-            // Keep only last 5 exchanges
-            if (conversationState.history.length > 5) {
-              conversationState.history = conversationState.history.slice(-5);
+                console.log("Loading animation added to chat");
             }
 
-            var botHtml = '<div class="d-flex justify-content-start mb-4">' +
-              '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-              '<div class="msg_cotainer">' + (data.response || data) +
-              '<span class="msg_time">' + str_time + "</span></div></div>";
+            function hideLoadingAnimation() {
+                console.log("Hiding loading animation...");
 
-            $("#messageFormeight").append($.parseHTML(botHtml));
-            $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
-          },
-          error: function (jqXHR, textStatus, errorThrown) {
-            console.error("AJAX Error:", textStatus, errorThrown);
-            console.error("Response:", jqXHR.responseText);
+                // Remove the loading message
+                const loadingElements = $("#messageFormeight .loaderRectangle").parent().parent();
+                loadingElements.remove();
 
-            // Hide loading animation
-            hideLoadingAnimation();
-
-            // Enable input and button
-            $("#text").prop("disabled", false);
-            $("#send").prop("disabled", false);
-
-            var errorHtml = '<div class="d-flex justify-content-start mb-4">' +
-              '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-              '<div class="msg_cotainer">' +
-              "I apologize, but I encountered an error. Please try again." +
-              '<span class="msg_time">' + str_time + "</span></div></div>";
-
-            $("#messageFormeight").append($.parseHTML(errorHtml));
-            $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
-          }
-        });
-      });
-
-      // Add format detection function to help debug
-      function detectFormat(text) {
-        console.log("Analyzing format of:", text);
-        const hasEmoji = text.includes('🔹');
-        const hasSections = text.includes('Medical Summary') ||
-          text.includes('Probable Medical Condition') ||
-          text.includes('Recommended Treatment') ||
-          text.includes('Precautions');
-        console.log(`Format detection: Has emoji: ${hasEmoji}, Has sections: ${hasSections}`);
-        return { hasEmoji, hasSections };
-      }
-
-      // Format markdown-like text to HTML for medical reports
-      function formatMedicalMarkdown(text) {
-        if (!text) return "";
-
-        // Step 1: Replace newlines with <br> tags
-        let formatted = text.replace(/\n/g, '<br>');
-
-        // Step 2: Format section headers (🔹 **Title**:)
-        formatted = formatted.replace(/🔹\s+\*\*(.*?)\*\*:/g,
-          '<div class="medical-report-section"><h4><span class="medical-icon">🔹</span> <strong>$1</strong>:</h4>');
-
-        // Step 3: Close section divs (look for the next section header or end of text)
-        const sections = formatted.split('<div class="medical-report-section">');
-        formatted = sections[0]; // Text before first section (if any)
-
-        for (let i = 1; i < sections.length; i++) {
-          formatted += '<div class="medical-report-section">' + sections[i];
-          // If this is not the last section, add closing div
-          if (i < sections.length - 1) {
-            formatted += '</div>';
-          }
-        }
-        // Close the last section
-        if (sections.length > 1) {
-          formatted += '</div>';
-        }
-
-        // Step 4: Format other markdown elements
-        // Bold text
-        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Italic text
-        formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-        // Step 5: Highlight important values
-        formatted = formatted.replace(/\b(high|elevated|abnormal)\b/gi, '<span class="high-value">$1</span>');
-        formatted = formatted.replace(/\b(low|reduced|decreased)\b/gi, '<span class="low-value">$1</span>');
-        formatted = formatted.replace(/\b(normal|within range)\b/gi, '<span class="normal-value">$1</span>');
-
-        return formatted;
-      }
-
-      // File upload handling
-      $("#attachFileBtn").click(function () {
-        console.log("Attach file button clicked");
-        $("#fileUpload").click();
-      });
-
-      $("#fileUpload").on("change", function (e) {
-        const file = e.target.files[0];
-        if (file) {
-          if (!file.type.includes("pdf")) {
-            alert("Please upload a PDF file");
-            return;
-          }
-
-          console.log("File selected:", file.name);
-
-          const fileName =
-            file.name.length > 60
-              ? file.name.substring(0, 60) + "..."
-              : file.name;
-
-          // Show upload status and file details
-          $("#uploadStatus").show();
-          $("#fileName").text(fileName);
-          $("#progressBar").css("width", "0%").addClass("uploading");
-
-          // Show loading animation
-          showLoadingAnimation();
-
-          // Create FormData and append file
-          const formData = new FormData();
-          formData.append("file", file);
-
-          // Configure XMLHttpRequest
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", "/upload", true);
-
-          // Upload progress handler
-          xhr.upload.addEventListener("progress", function (e) {
-            if (e.lengthComputable) {
-              const percent = (e.loaded / e.total) * 100;
-              $("#progressBar").css("width", percent + "%");
-              console.log("Upload progress:", percent + "%");
-
-              // Update processing message
-              if (percent === 100) {
-                $("#processingMessage .msg_cotainer").text(
-                  "Analyzing document contents..."
-                );
-              }
+                console.log("Loading animation removed from chat");
             }
-          });
 
-          // Handle completion
-          xhr.onload = function () {
-            if (xhr.status === 200) {
-              const response = JSON.parse(xhr.responseText);
-              console.log("File upload successful:", response);
+            // Handle form submission
+            $("#messageArea").on("submit", function (event) {
+                event.preventDefault();
 
-              $("#progressBar").removeClass("uploading");
-              $("#processingMessage").remove(); // Remove processing message
-
-              setTimeout(() => {
-                $("#progressBar").css("background", "#4CAF50");
-                // Store document ID
-                uploadedDocIds.push(response.doc_id);
-
-                // Show success message with summary in chat
                 const date = new Date();
                 const hour = date.getHours();
                 const minute = date.getMinutes();
-                const str_time =
-                  hour + ":" + (minute < 10 ? "0" : "") + minute;
+                const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
+                var rawText = $("#text").val().trim();
 
-                // Get document summary
-                $.ajax({
-                  url: "/get_summary",
-                  type: "POST",
-                  contentType: "application/json",
-                  data: JSON.stringify({ doc_id: response.doc_id }),
-                  success: function (summaryResponse) {
-                    console.log("Summary received:", summaryResponse);
+                // Don't submit empty messages
+                if (!rawText) return;
 
-                    // Debug response object
-                    debugResponse(summaryResponse);
+                console.log("Sending message:", rawText);
 
-                    // Hide loading animation
-                    hideLoadingAnimation();
-
-                    // Start building the HTML for the chat message
-                    let botHtml =
-                      '<div class="d-flex justify-content-start mb-4">' +
-                      '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-                      '<div class="msg_cotainer">' +
-                      `I've successfully processed "${fileName}" (${response.chunks} sections analyzed).<br><br>`;
-
-                    // Use the pre-formatted version first if available, falling back to other options
-                    if (summaryResponse.pre_formatted) {
-                      console.log("Using pre-formatted content for exact spacing");
-                      botHtml += summaryResponse.pre_formatted;
-                    } else if (summaryResponse.html_formatted) {
-                      console.log("Using HTML-formatted content");
-                      botHtml += summaryResponse.html_formatted;
-                    } else if (summaryResponse.comprehensive_analysis) {
-                      console.log("Using raw comprehensive analysis with formatting");
-                      // Format the comprehensive analysis with proper HTML
-                      const formattedAnalysis = formatMedicalMarkdown(summaryResponse.comprehensive_analysis);
-                      botHtml += formattedAnalysis;
-                    } else {
-                      console.log("No analysis found, using summary as fallback");
-                      botHtml += `<div class="medical-report-analysis"><div class="quick-summary">🔹 <strong>Medical Analysis</strong>: ${summaryResponse.summary}</div></div>`;
-                    }
-
-                    // Close the HTML tags
-                    botHtml += `<span class="msg_time">${str_time}</span></div></div>`;
-
-                    // Log the final HTML before appending
-                    console.log("Final HTML structure (preview):", botHtml.substring(0, 150));
-
-                    // Append the HTML to the message container using parseHTML to properly handle HTML
-                    console.log("Appending report analysis to chat");
-                    $("#messageFormeight").append($.parseHTML(botHtml));
-                    $("#messageFormeight").scrollTop(
-                      $("#messageFormeight")[0].scrollHeight
-                    );
-                  },
-                  error: function (jqXHR, textStatus, errorThrown) {
-                    console.error("Summary error:", textStatus, errorThrown);
-                    console.error("Response:", jqXHR.responseText);
-
-                    // Hide loading animation
-                    hideLoadingAnimation();
-
-                    // Fallback message if summary fails
-                    const botHtml =
-                      '<div class="d-flex justify-content-start mb-4">' +
-                      '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-                      '<div class="msg_cotainer">' +
-                      `I've successfully processed "${fileName}". I've analyzed ${response.chunks} sections from this document. You can now ask me questions about its contents.` +
-                      '<span class="msg_time">' +
-                      str_time +
-                      "</span></div></div>";
-
-                    $("#messageFormeight").append($.parseHTML(botHtml));
-                    $("#messageFormeight").scrollTop(
-                      $("#messageFormeight")[0].scrollHeight
-                    );
-                  },
-                });
-
-              // Hide loading animation
-              hideLoadingAnimation();
-
-              // Show error message in chat
-              const errorHtml =
-                '<div class="d-flex justify-content-start mb-4">' +
-                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-                '<div class="msg_cotainer">' +
-                `Error processing file: ${error.error || "Upload failed"}` +
-                '<span class="msg_time">Now</span></div></div>';
-
-              $("#messageFormeight").append($.parseHTML(errorHtml));
-              $("#messageFormeight").scrollTop(
-                $("#messageFormeight")[0].scrollHeight
-              );
-
-            // Hide loading animation
-            hideLoadingAnimation();
-
-            // Show error message in chat
-            const errorHtml =
-              '<div class="d-flex justify-content-start mb-4">' +
-              '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-              '<div class="msg_cotainer">' +
-              "Upload failed. Please try again." +
-              '<span class="msg_time">Now</span></div></div>';
-
-            $("#messageFormeight").append($.parseHTML(errorHtml));
-            $("#messageFormeight").scrollTop(
-              $("#messageFormeight")[0].scrollHeight
-            );
-
-      // Voice Input Functionality
-      let mediaRecorder;
-      let audioChunks = [];
-      let mediaStream;
-
-      document
-        .getElementById("voiceBtn")
-        .addEventListener("click", async function () {
-          const button = this;
-
-          if (!mediaRecorder) {
-            try {
-              mediaStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-              });
-              mediaRecorder = new MediaRecorder(mediaStream);
-              audioChunks = [];
-
-              mediaRecorder.ondataavailable = (event) => {
-                audioChunks.push(event.data);
-              };
-
-              mediaRecorder.onstop = async () => {
-                // Stop all tracks in the media stream
-                mediaStream.getTracks().forEach((track) => track.stop());
-
-                const audioBlob = new Blob(audioChunks, {
-                  type: "audio/wav",
-                });
-                const reader = new FileReader();
-
-                reader.onload = function () {
-                  const base64Audio = reader.result.split(",")[1];
-
-                  // Send to speech-to-text endpoint
-                  fetch("/speech_to_text", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      audio_data: base64Audio,
-                    }),
-                  })
-                    .then((response) => {
-                      if (!response.ok) {
-                        throw new Error("Network response was not ok");
-                      }
-                      return response.json();
-                    })
-                    .then((data) => {
-                      if (data.text) {
-                        document.getElementById("text").value = data.text;
-                      } else if (data.error) {
-                        console.error("Speech-to-text error:", data.error);
-                        alert(
-                          "Error converting speech to text. Please try again."
-                        );
-                      }
-                    })
-                    .catch((error) => {
-                      console.error("Error:", error);
-                      alert(
-                        "Error processing voice input. Please try again."
-                      );
-                    });
+                // Update conversation state
+                conversationState.currentContext = {
+                    lastQuestion: rawText,
+                    history: conversationState.history.slice(-5) // Keep last 5 exchanges
                 };
 
-                reader.readAsDataURL(audioBlob);
+                // Disable input and button while waiting for response
+                $("#text").prop("disabled", true);
+                $("#send").prop("disabled", true);
 
-                // Reset the button state
-                button.classList.remove("recording");
-                button.querySelector("i").classList.remove("fa-stop");
-                button.querySelector("i").classList.add("fa-microphone");
-                mediaRecorder = null;
-                mediaStream = null;
-              };
+                var userHtml = '<div class="d-flex justify-content-end mb-4">' +
+                    '<div class="msg_cotainer_send">' + rawText +
+                    '<span class="msg_time_send">' + str_time + "</span></div>" +
+                    '<div class="img_cont_msg"><img src="static/images/user1.png" class="rounded-circle user_img_msg"></div></div>';
 
-              mediaRecorder.start();
-              button.classList.add("recording");
-              button.querySelector("i").classList.remove("fa-microphone");
-              button.querySelector("i").classList.add("fa-stop");
-            } catch (error) {
-              console.error("Error accessing microphone:", error);
-              alert(
-                "Error accessing microphone. Please ensure you have granted microphone permissions."
-              );
-              // Reset button state on error
-              button.classList.remove("recording");
-              button.querySelector("i").classList.remove("fa-stop");
-              button.querySelector("i").classList.add("fa-microphone");
-              mediaRecorder = null;
-              mediaStream = null;
+                $("#text").val("");
+                $("#messageFormeight").append(userHtml);
+                $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+
+                // Show loading animation AFTER the user message is added
+                showLoadingAnimation();
+
+                $.ajax({
+                    url: "/get",
+                    type: "POST",
+                    data: {
+                        msg: rawText,
+                        context: JSON.stringify(conversationState.currentContext)
+                    },
+                    success: function (data) {
+                        console.log("Response received:", data);
+
+                        // Hide loading animation
+                        hideLoadingAnimation();
+
+                        // Enable input and button
+                        $("#text").prop("disabled", false);
+                        $("#send").prop("disabled", false);
+
+                        // Update conversation state
+                        conversationState.history.push({
+                            question: rawText,
+                            answer: data.response || data
+                        });
+
+                        // Keep only last 5 exchanges
+                        if (conversationState.history.length > 5) {
+                            conversationState.history = conversationState.history.slice(-5);
+                        }
+
+                        var botHtml = '<div class="d-flex justify-content-start mb-4">' +
+                            '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                            '<div class="msg_cotainer">' + (data.response || data) +
+                            '<span class="msg_time">' + str_time + "</span></div></div>";
+
+                        $("#messageFormeight").append($.parseHTML(botHtml));
+                        $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.error("AJAX Error:", textStatus, errorThrown);
+                        console.error("Response:", jqXHR.responseText);
+
+                        // Hide loading animation
+                        hideLoadingAnimation();
+
+                        // Enable input and button
+                        $("#text").prop("disabled", false);
+                        $("#send").prop("disabled", false);
+
+                        var errorHtml = '<div class="d-flex justify-content-start mb-4">' +
+                            '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                            '<div class="msg_cotainer">' +
+                            "I apologize, but I encountered an error. Please try again." +
+                            '<span class="msg_time">' + str_time + "</span></div></div>";
+
+                        $("#messageFormeight").append($.parseHTML(errorHtml));
+                        $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+                    }
+                });
+            });
+
+            // File upload handling
+            $("#attachFileBtn").click(function () {
+                console.log("Attach file button clicked");
+                $("#fileUpload").click();
+            });
+
+            // Add file upload handler
+            $("#fileUpload").on("change", function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    if (!file.type.includes("pdf")) {
+                        alert("Please upload a PDF file");
+                        return;
+                    }
+
+                    console.log("File selected:", file.name);
+
+                    const fileName =
+                        file.name.length > 60
+                            ? file.name.substring(0, 60) + "..."
+                            : file.name;
+
+                    // Show loading animation
+
+
+                    // Current timestamp for the message
+                    const date = new Date();
+                    const hour = date.getHours();
+                    const minute = date.getMinutes();
+                    const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
+
+                    // Add user upload message
+                    const userHtml =
+                        '<div class="d-flex justify-content-end mb-4">' +
+                        '<div class="msg_cotainer_send">Uploading medical document for analysis: ' + fileName +
+                        '<span class="msg_time_send">' + str_time + "</span></div>" +
+                        '<div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+
+                    $("#messageFormeight").append(userHtml);
+                    $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+
+                    // Create FormData and append file
+                    showLoadingAnimation();
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    // Upload file
+                    $.ajax({
+                        url: "/upload",
+                        type: "POST",
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function (response) {
+                            console.log("File upload successful:", response);
+
+                            // Get document summary
+                            $.ajax({
+                                url: "/get_summary",
+                                type: "POST",
+                                contentType: "application/json",
+                                data: JSON.stringify({ doc_id: response.doc_id }),
+                                success: function (summaryResponse) {
+                                    console.log("Summary received:", summaryResponse);
+
+                                    // Hide loading animation
+                                    hideLoadingAnimation();
+
+                                    // Format the response 
+                                    let summaryHtml = '';
+
+                                    if (summaryResponse.comprehensive_analysis) {
+                                        // Use the comprehensive analysis
+                                        summaryHtml = summaryResponse.comprehensive_analysis.replace(/\n/g, '<br>');
+                                    } else {
+                                        // Fallback to basic summary
+                                        summaryHtml = summaryResponse.summary;
+                                    }
+
+                                    const botHtml =
+                                        '<div class="d-flex justify-content-start mb-4">' +
+                                        '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                        '<div class="msg_cotainer">' +
+                                        `I've successfully processed "${fileName}" (${response.chunks} sections analyzed).<br><br>` +
+                                        summaryHtml +
+                                        '<span class="msg_time">' +
+                                        str_time +
+                                        "</span></div></div>";
+
+                                    $("#messageFormeight").append($.parseHTML(botHtml));
+                                    $("#messageFormeight").scrollTop(
+                                        $("#messageFormeight")[0].scrollHeight
+                                    );
+                                },
+                                error: function (jqXHR, textStatus, errorThrown) {
+                                    console.error("Summary error:", textStatus, errorThrown);
+                                    console.error("Response:", jqXHR.responseText);
+
+                                    // Hide loading animation
+                                    hideLoadingAnimation();
+
+                                    // Fallback message if summary fails
+                                    const botHtml =
+                                        '<div class="d-flex justify-content-start mb-4">' +
+                                        '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                        '<div class="msg_cotainer">' +
+                                        `I've successfully processed "${fileName}". I've analyzed ${response.chunks} sections from this document. You can now ask me questions about its contents.` +
+                                        '<span class="msg_time">' +
+                                        str_time +
+                                        "</span></div></div>";
+
+                                    $("#messageFormeight").append($.parseHTML(botHtml));
+                                    $("#messageFormeight").scrollTop(
+                                        $("#messageFormeight")[0].scrollHeight
+                                    );
+                                }
+                            });
+                        },
+                        error: function (xhr, status, error) {
+                            console.error("File upload error:", error);
+
+                            // Hide loading animation
+                            hideLoadingAnimation();
+
+                            // Show error message in chat
+                            const errorHtml =
+                                '<div class="d-flex justify-content-start mb-4">' +
+                                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                '<div class="msg_cotainer">' +
+                                "Error processing file. Please ensure you're uploading a valid PDF medical document and try again." +
+                                '<span class="msg_time">' + str_time + "</span></div></div>";
+
+                            $("#messageFormeight").append($.parseHTML(errorHtml));
+                            $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+                        }
+                    });
+                }
+            });
+
+            // Voice Input setup
+            let mediaRecorder;
+            let audioChunks = [];
+            let mediaStream;
+
+            document.getElementById("voiceBtn").addEventListener("click", async function () {
+                const button = this;
+
+                if (!mediaRecorder) {
+                    try {
+                        mediaStream = await navigator.mediaDevices.getUserMedia({
+                            audio: true,
+                        });
+                        mediaRecorder = new MediaRecorder(mediaStream);
+                        audioChunks = [];
+
+                        mediaRecorder.ondataavailable = (event) => {
+                            audioChunks.push(event.data);
+                        };
+
+                        mediaRecorder.onstop = async () => {
+                            // Stop all tracks in the media stream
+                            mediaStream.getTracks().forEach((track) => track.stop());
+
+                            const audioBlob = new Blob(audioChunks, {
+                                type: "audio/wav",
+                            });
+                            const reader = new FileReader();
+
+                            reader.onload = function () {
+                                const base64Audio = reader.result.split(",")[1];
+
+                                // Send to speech-to-text endpoint
+                                fetch("/speech_to_text", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        audio_data: base64Audio,
+                                    }),
+                                })
+                                    .then((response) => {
+                                        if (!response.ok) {
+                                            throw new Error("Network response was not ok");
+                                        }
+                                        return response.json();
+                                    })
+                                    .then((data) => {
+                                        if (data.text) {
+                                            document.getElementById("text").value = data.text;
+                                        } else if (data.error) {
+                                            console.error("Speech-to-text error:", data.error);
+                                            alert(
+                                                "Error converting speech to text. Please try again."
+                                            );
+                                        }
+                                    })
+                                    .catch((error) => {
+                                        console.error("Error:", error);
+                                        alert(
+                                            "Error processing voice input. Please try again."
+                                        );
+                                    });
+                            };
+
+                            reader.readAsDataURL(audioBlob);
+
+                            // Reset the button state
+                            button.classList.remove("recording");
+                            button.querySelector("i").classList.remove("fa-stop");
+                            button.querySelector("i").classList.add("fa-microphone");
+                            mediaRecorder = null;
+                            mediaStream = null;
+                        };
+
+                        mediaRecorder.start();
+                        button.classList.add("recording");
+                        button.querySelector("i").classList.remove("fa-microphone");
+                        button.querySelector("i").classList.add("fa-stop");
+                    } catch (error) {
+                        console.error("Error accessing microphone:", error);
+                        alert(
+                            "Error accessing microphone. Please ensure you have granted microphone permissions."
+                        );
+                        // Reset button state on error
+                        button.classList.remove("recording");
+                        button.querySelector("i").classList.remove("fa-stop");
+                        button.querySelector("i").classList.add("fa-microphone");
+                        mediaRecorder = null;
+                        mediaStream = null;
+                    }
+                } else {
+                    mediaRecorder.stop();
+                }
+            });
+
+            // Medical Help Button Click Handler
+            $("#findHelpBtn").click(function () {
+                console.log("Medical help button clicked");
+                $("#medicalHelpForm").show();
+                $("#text").hide();
+            });
+
+            // Cancel Medical Help Search
+            $("#cancelMedicalHelp").click(function () {
+                $("#medicalHelpForm").hide();
+                $("#text").show();
+                $("#diseaseInput").val("");
+                $("#locationInput").val("");
+            });
+
+            // FAQ Button Click Handler
+            $(".faq-btn").click(function () {
+                // Only for buttons with data-question attribute (original FAQ buttons)
+                if ($(this).data('question')) {
+                    const question = $(this).data('question');
+
+                    // Fade out the FAQ buttons container
+                    $("#faqButtonsContainer").addClass('fade-out');
+
+                    // Hide the buttons after animation completes
+                    setTimeout(() => {
+                        $("#faqButtonsContainer").hide();
+                    }, 500);
+
+                    // Fill the question into the input field
+                    $("#text").val(question);
+
+                    // Submit the form
+                    $("#messageArea").submit();
+                }
+            });
+
+            // Summary Generator Button 
+            $("#summaryGeneratorBtn").click(function (e) {
+                e.stopPropagation(); // Prevent triggering the parent .faq-btn click handler
+                console.log("Summary Generator button clicked");
+
+                // Fade out the FAQ buttons container
+                $("#faqButtonsContainer").addClass('fade-out');
+
+                // Hide the buttons after animation completes
+                setTimeout(() => {
+                    $("#faqButtonsContainer").hide();
+                    // Open file dialog
+                    $("#fileUpload").click();
+                }, 500);
+            });
+
+            // Find Nearby Doctors Button 
+            $("#findDoctorsBtn").click(function (e) {
+                e.stopPropagation(); // Prevent triggering the parent .faq-btn click handler
+                console.log("Find Nearby Doctors button clicked");
+
+                // Fade out the FAQ buttons container
+                $("#faqButtonsContainer").addClass('fade-out');
+
+                // Hide the buttons after animation completes
+                setTimeout(() => {
+                    $("#faqButtonsContainer").hide();
+                    // Show the medical help form
+                    $("#medicalHelpForm").show();
+                    $("#text").hide();
+                }, 500);
+            });
+
+            // General Tips Button 
+            $("#generalTipsBtn").click(function (e) {
+                e.stopPropagation(); // Prevent triggering the parent .faq-btn click handler
+                console.log("General Tips button clicked");
+
+                // Fade out the FAQ buttons container
+                $("#faqButtonsContainer").addClass('fade-out');
+
+                // Start processing after fade out animation
+                setTimeout(() => {
+                    $("#faqButtonsContainer").hide();
+
+                    // Show loading animation
+                    showLoadingAnimation();
+
+                    // Current timestamp for the message
+                    const date = new Date();
+                    const hour = date.getHours();
+                    const minute = date.getMinutes();
+                    const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
+
+                    // Add user request to chat
+                    const userHtml =
+                        '<div class="d-flex justify-content-end mb-4">' +
+                        '<div class="msg_cotainer_send">Show me some general medical tips' +
+                        '<span class="msg_time_send">' + str_time + "</span></div>" +
+                        '<div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+
+                    $("#messageFormeight").append(userHtml);
+                    $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+
+                    // Send request to server for random tips
+                    $.ajax({
+                        url: "/get_random_tips",
+                        type: "GET",
+                        success: function (response) {
+                            // Hide loading animation
+                            hideLoadingAnimation();
+
+                            // Format tips with bullet points for display
+                            let formattedTips = "<strong>Here are 5 general medical tips:</strong><br><br>";
+                            response.tips.forEach((tip, index) => {
+                                formattedTips += `• ${tip}<br><br>`;
+                            });
+
+                            // Display bot response with tips
+                            const botHtml =
+                                '<div class="d-flex justify-content-start mb-4">' +
+                                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                '<div class="msg_cotainer">' + formattedTips +
+                                '<span class="msg_time">' + str_time + "</span></div></div>";
+
+                            $("#messageFormeight").append($.parseHTML(botHtml));
+                            $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+                        },
+                        error: function (xhr, status, error) {
+                            // Hide loading animation
+                            hideLoadingAnimation();
+
+                            // Display error message
+                            const errorHtml =
+                                '<div class="d-flex justify-content-start mb-4">' +
+                                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                '<div class="msg_cotainer">' +
+                                "I'm sorry, I couldn't retrieve medical tips at the moment. Please try again later." +
+                                '<span class="msg_time">' + str_time + "</span></div></div>";
+
+                            $("#messageFormeight").append($.parseHTML(errorHtml));
+                            $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
+                        }
+                    });
+                }, 500);
+            });
+
+            // Search Medical Help
+            $("#searchMedicalHelp").click(function () {
+                // Handle medical help search
+                const disease = $("#diseaseInput").val();
+                const location = $("#locationInput").val();
+
+                if (!disease || !location) {
+                    alert("Please enter both disease and location");
+                    return;
+                }
+
+                // Show user message
+                const date = new Date();
+                const hour = date.getHours();
+                const minute = date.getMinutes();
+                const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
+
+                const userHtml =
+                    '<div class="d-flex justify-content-end mb-4">' +
+                    '<div class="msg_cotainer_send">' +
+                    `Looking for medical help for ${disease} in ${location}` +
+                    '<span class="msg_time_send">' +
+                    str_time +
+                    "</span></div>" +
+                    '<div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+
+                $("#messageFormeight").append(userHtml);
+                $("#messageFormeight").scrollTop(
+                    $("#messageFormeight")[0].scrollHeight
+                );
+
+                // Show loading animation
+                showLoadingAnimation();
+
+                // Make API call
+                $.ajax({
+                    url: "/find_medical_help",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ disease: disease, location: location }),
+                    success: function (response) {
+                        // Hide loading animation
+                        hideLoadingAnimation();
+
+                        if (response.success) {
+                            // Format the response to preserve line breaks
+                            const formattedResponse = response.response.replace(/\n/g, "<br>");
+
+                            const botHtml =
+                                '<div class="d-flex justify-content-start mb-4">' +
+                                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                '<div class="msg_cotainer">' +
+                                formattedResponse +
+                                '<span class="msg_time">' +
+                                str_time +
+                                "</span></div></div>";
+
+                            $("#messageFormeight").append($.parseHTML(botHtml));
+                        } else {
+                            const errorHtml =
+                                '<div class="d-flex justify-content-start mb-4">' +
+                                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                                '<div class="msg_cotainer">' +
+                                response.message +
+                                '<span class="msg_time">' +
+                                str_time +
+                                "</span></div></div>";
+
+                            $("#messageFormeight").append($.parseHTML(errorHtml));
+                        }
+
+                        $("#messageFormeight").scrollTop(
+                            $("#messageFormeight")[0].scrollHeight
+                        );
+
+                        // Reset form
+                        $("#medicalHelpForm").hide();
+                        $("#text").show();
+                        $("#diseaseInput").val("");
+                        $("#locationInput").val("");
+                    },
+                    error: function (xhr, status, error) {
+                        // Hide loading animation
+                        hideLoadingAnimation();
+
+                        const errorHtml =
+                            '<div class="d-flex justify-content-start mb-4">' +
+                            '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
+                            '<div class="msg_cotainer">' +
+                            "An error occurred while searching for medical help. Please try again." +
+                            '<span class="msg_time">' +
+                            str_time +
+                            "</span></div></div>";
+
+                        $("#messageFormeight").append($.parseHTML(errorHtml));
+                        $("#messageFormeight").scrollTop(
+                            $("#messageFormeight")[0].scrollHeight
+                        );
+
+                        // Reset form
+                        $("#medicalHelpForm").hide();
+                        $("#text").show();
+                        $("#diseaseInput").val("");
+                        $("#locationInput").val("");
+                    }
+                });
+            });
+
+            // Med Alert Popup Functionality
+            const medAlertPopup = $("#medAlertPopup");
+            const popupMedicinesContainer = $("#popupMedicinesContainer");
+            let medicineCount = 1;
+
+            // Open Med Alert popup - handle both buttons
+            $("#medAlertBtn, #dropdownMedAlertBtn").click(function (e) {
+                e.preventDefault();
+                medAlertPopup.fadeIn(300);
+            });
+
+            // Close Med Alert popup
+            $(".med-alert-close, #cancelMedAlert").click(function () {
+                medAlertPopup.fadeOut(300);
+            });
+
+            // Close popup when clicking outside the content
+            medAlertPopup.click(function (e) {
+                if ($(e.target).is(medAlertPopup)) {
+                    medAlertPopup.fadeOut(300);
+                }
+            });
+
+            // Handle Add Medicine button
+            $("#addMedicineBtn").click(function () {
+                medicineCount++;
+                const template = `
+                <div class="medicine-item">
+                    <div class="medicine-header">
+                        <h5>Medication ${medicineCount}</h5>
+                        <button type="button" class="medicine-remove-btn">&times;</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Medicine Name</label>
+                        <input type="text" class="form-control med-name" placeholder="e.g., Aspirin" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Dosage</label>
+                        <input type="text" class="form-control med-dosage" placeholder="e.g., 1 tablet morning" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>Reminder Time</label>
+                            <input type="time" class="form-control med-time" value="08:00" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Duration (days)</label>
+                            <input type="number" class="form-control med-days" min="1" value="2" required>
+                        </div>
+                    </div>
+                </div>`;
+
+                popupMedicinesContainer.append(template);
+
+                // Bind remove button event for the new item
+                popupMedicinesContainer.find(".medicine-item:last-child .medicine-remove-btn").click(function () {
+                    if (popupMedicinesContainer.find(".medicine-item").length > 1) {
+                        $(this).closest(".medicine-item").remove();
+                        // Update medication numbers
+                        updateMedicineNumbers();
+                    } else {
+                        alert('You must have at least one medication.');
+                    }
+                });
+            });
+
+            // Bind remove button for initial medicine item
+            $(document).on("click", ".medicine-remove-btn", function () {
+                if (popupMedicinesContainer.find(".medicine-item").length > 1) {
+                    $(this).closest(".medicine-item").remove();
+                    // Update medication numbers
+                    updateMedicineNumbers();
+                } else {
+                    alert('You must have at least one medication.');
+                }
+            });
+
+            // Function to update medicine numbers after removal
+            function updateMedicineNumbers() {
+                popupMedicinesContainer.find(".medicine-item").each(function (index) {
+                    $(this).find("h5").text(`Medication ${index + 1}`);
+                });
+                medicineCount = popupMedicinesContainer.find(".medicine-item").length;
             }
-          } else {
-            mediaRecorder.stop();
-          }
-        });
 
-      // Medical Help Button Click Handler
-      $("#findHelpBtn").click(function () {
-        console.log("Medical help button clicked"); // Debug log
-        $("#medicalHelpForm").show();
-        $("#text").hide();
-      });
+            // Handle form submission
+            $("#medReminderForm").submit(function (e) {
+                e.preventDefault();
 
-      // Cancel Medical Help Search
-      $("#cancelMedicalHelp").click(function () {
-        $("#medicalHelpForm").hide();
-        $("#text").show();
-        $("#diseaseInput").val("");
-        $("#locationInput").val("");
-      });
+                // Disable the button and show loading state
+                const submitBtn = $("#scheduleMedAlert");
+                submitBtn.prop("disabled", true);
+                submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Scheduling...');
 
-      // Search Medical Help
-      $("#searchMedicalHelp").click(function () {
-        console.log("Search button clicked"); // Debug log
-        const disease = $("#diseaseInput").val();
-        const location = $("#locationInput").val();
+                // Get the email
+                const email = $("#popupPatientEmail").val();
 
-        console.log("Disease:", disease, "Location:", location); // Debug log
+                // Get all medicines
+                const medicines = [];
+                popupMedicinesContainer.find(".medicine-item").each(function () {
+                    const medicine = {
+                        name: $(this).find(".med-name").val(),
+                        dosage: $(this).find(".med-dosage").val(),
+                        time: $(this).find(".med-time").val(),
+                        days: parseInt($(this).find(".med-days").val())
+                    };
+                    medicines.push(medicine);
+                });
 
-        if (!disease || !location) {
-          alert("Please enter both disease and location");
-          return;
-        }
+                // Create the payload
+                const payload = {
+                    email: email,
+                    medicines: medicines
+                };
 
-        // Show user message
-        const date = new Date();
-        const hour = date.getHours();
-        const minute = date.getMinutes();
-        const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
+                // Send the request
+                $.ajax({
+                    url: "/api/schedule",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(payload),
+                    success: function (response) {
+                        // Show success in chat
+                        const date = new Date();
+                        const hour = date.getHours();
+                        const minute = date.getMinutes();
+                        const str_time = hour + ":" + (minute < 10 ? "0" : "") + minute;
 
-        const userHtml =
-          '<div class="d-flex justify-content-end mb-4">' +
-          '<div class="msg_cotainer_send">' +
-          `Looking for medical help for ${disease} in ${location}` +
-          '<span class="msg_time_send">' +
-          str_time +
-          "</span></div>" +
-          '<div class="img_cont_msg"><img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg"></div></div>';
+                        const userHtml = `
+                        <div class="d-flex justify-content-end mb-4">
+                            <div class="msg_cotainer_send">
+                                Scheduling medication reminders for ${email}
+                                <span class="msg_time_send">${str_time}</span>
+                            </div>
+                            <div class="img_cont_msg">
+                                <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg">
+                            </div>
+                        </div>`;
 
-        $("#messageFormeight").append(userHtml);
-        $("#messageFormeight").scrollTop(
-          $("#messageFormeight")[0].scrollHeight
-        );
+                        const responseHtml = `
+                        <div class="d-flex justify-content-start mb-4">
+                            <div class="img_cont_msg">
+                                <img src="static/images/nurse.png" class="rounded-circle user_img_msg">
+                            </div>
+                            <div class="msg_cotainer">
+                                <strong>Medication reminders scheduled!</strong><br>
+                                I've set up email reminders for ${medicines.length} medication(s).<br><br>
+                                <span style="color:#f1c40f">⚠️ Important:</span> Please check your spam folder if you don't see the reminders in your inbox. Mark them as "Not Spam" to ensure future deliveries.
+                                <span class="msg_time">${str_time}</span>
+                            </div>
+                        </div>`;
 
-        // Show loading animation
-        showLoadingAnimation();
+                        // Add to chat
+                        $("#messageFormeight").append(userHtml);
+                        $("#messageFormeight").append(responseHtml);
+                        $("#messageFormeight").scrollTop($("#messageFormeight")[0].scrollHeight);
 
-        // Make API call
-        $.ajax({
-          url: "/find_medical_help",
-          type: "POST",
-          contentType: "application/json",
-          data: JSON.stringify({ disease: disease, location: location }),
-          success: function (response) {
-            console.log("API Response:", response); // Debug log
-            // Hide loading animation
-            hideLoadingAnimation();
+                        // Reset and close the form
+                        resetMedReminderForm();
+                        medAlertPopup.fadeOut(300);
+                    },
+                    error: function (error) {
+                        console.error("Error scheduling reminders:", error);
+                        alert("Error scheduling reminders. Please try again.");
+                    },
+                    complete: function () {
+                        // Re-enable the button
+                        submitBtn.prop("disabled", false);
+                        submitBtn.text("Schedule Reminders");
+                    }
+                });
+            });
 
-            if (response.success) {
-              // Format the response to preserve line breaks
-              const formattedResponse = response.response.replace(/\n/g, "<br>");
-
-              const botHtml =
-                '<div class="d-flex justify-content-start mb-4">' +
-                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-                '<div class="msg_cotainer">' +
-                formattedResponse +
-                '<span class="msg_time">' +
-                str_time +
-                "</span></div></div>";
-
-              // Append to messageFormeight instead of replacing chat-response content
-              $("#messageFormeight").append($.parseHTML(botHtml));
-            } else {
-              const errorHtml =
-                '<div class="d-flex justify-content-start mb-4">' +
-                '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-                '<div class="msg_cotainer">' +
-                response.message +
-                '<span class="msg_time">' +
-                str_time +
-                "</span></div></div>";
-
-              $("#messageFormeight").append($.parseHTML(errorHtml));
+            // Function to reset the form
+            function resetMedReminderForm() {
+                $("#popupPatientEmail").val("");
+                // Remove all medicine items except the first one
+                popupMedicinesContainer.find(".medicine-item:not(:first)").remove();
+                // Reset first medicine item
+                const firstItem = popupMedicinesContainer.find(".medicine-item:first");
+                firstItem.find(".med-name").val("");
+                firstItem.find(".med-dosage").val("");
+                firstItem.find(".med-time").val("08:00");
+                firstItem.find(".med-days").val("7");
+                // Reset medicine count
+                medicineCount = 1;
             }
-
-            $("#messageFormeight").scrollTop(
-              $("#messageFormeight")[0].scrollHeight
-            );
-
-            // Reset form
-            $("#medicalHelpForm").hide();
-            $("#text").show();
-            $("#diseaseInput").val("");
-            $("#locationInput").val("");
-          },
-          error: function (xhr, status, error) {
-            console.error("AJAX Error:", status, error); // Debug log
-            console.error("Response:", xhr.responseText); // Debug log
-            // Hide loading animation
-            hideLoadingAnimation();
-
-            const errorHtml =
-              '<div class="d-flex justify-content-start mb-4">' +
-              '<div class="img_cont_msg"><img src="static/images/nurse.png" class="rounded-circle user_img_msg"></div>' +
-              '<div class="msg_cotainer">' +
-              "An error occurred while searching for medical help. Please try again." +
-              '<span class="msg_time">' +
-              str_time +
-              "</span></div></div>";
-
-            $("#messageFormeight").append($.parseHTML(errorHtml));
-            $("#messageFormeight").scrollTop(
-              $("#messageFormeight")[0].scrollHeight
-            );
-
-            // Reset form
-            $("#medicalHelpForm").hide();
-            $("#text").show();
-            $("#diseaseInput").val("");
-            $("#locationInput").val("");
-          },
         });
-      });
-
-      // Debug function to examine response object
-      function debugResponse(response) {
-        console.log("Debug - Summary response object:", response);
-        console.log("Debug - Response keys:", Object.keys(response));
-        console.log("Debug - Has comprehensive_analysis:", response.hasOwnProperty('comprehensive_analysis'));
-
-        if (response.comprehensive_analysis) {
-          console.log("Debug - comprehensive_analysis content type:", typeof response.comprehensive_analysis);
-          console.log("Debug - comprehensive_analysis content length:", response.comprehensive_analysis.length);
-          console.log("Debug - comprehensive_analysis preview:", response.comprehensive_analysis.substring(0, 100));
-        } else {
-          console.log("Debug - comprehensive_analysis not found or empty");
-        }
-
-        if (response.summary) {
-          console.log("Debug - summary content type:", typeof response.summary);
-          console.log("Debug - summary content length:", response.summary.length);
-          console.log("Debug - summary preview:", response.summary.substring(0, 100));
-        }
-      }
-    });
-  </script>
+    </script>
 </body>
 
 </html>

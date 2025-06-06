@@ -6,21 +6,17 @@ from werkzeug.utils import secure_filename
 import tempfile
 import uuid
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 import requests
-from places import MedicalPlacesSystem  # Add this import
+from places import MedicalPlacesSystem
+from apscheduler.schedulers.background import BackgroundScheduler
+import json
 
-from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.chat_models import ChatOpenAI
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_pinecone import PineconeVectorStore
-# from langchain.chat_models import ChatOpenAI  # Use ChatOpenAI with Together API
 from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-from src.helper import download_hugging_face_embeddings
+from src.lazy_loader import get_embeddings, get_llm, get_retriever, get_question_answer_chain
 from src.prompt import get_system_prompt, customize_response
 from src.database import get_user_health, create_user, verify_user, init_db
 
@@ -32,46 +28,6 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-123')
 
 # Load environment variables
 load_dotenv()
-
-# Retrieve API keys from environment variables
-PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
-TOGETHER_API_KEY = os.environ.get('TOGETHER_API_KEY')
-
-# Ensure keys are available for libraries
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
-
-# Load embeddings
-embeddings = download_hugging_face_embeddings()
-
-# Initialize Pinecone index
-index_name = "medicalbot-try"
-docsearch = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
-    embedding=embeddings
-)
-
-# Create retriever
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 5})
-
-# Initialize LLM
-llm = ChatOpenAI(
-    openai_api_key=TOGETHER_API_KEY,
-    openai_api_base="https://api.together.xyz/v1",
-    model_name="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    temperature=0.4,
-    max_tokens=500
-)
-
-# Build prompt chain with context
-prompt = ChatPromptTemplate.from_messages([
-    ("system", get_system_prompt() + "\n\nPrevious conversation context:\n{context}"),
-    ("human", "{input}"),
-])
-
-# Create the question-answer and retrieval chain
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
 # Configure upload folder
 UPLOAD_FOLDER = 'uploads'
@@ -92,7 +48,17 @@ except Exception as e:
     print(f"Error initializing MedicalPlacesSystem: {str(e)}")
     import traceback
     print(f"Full traceback: {traceback.format_exc()}")
-    medical_system = None  # Explicitly set to None on failure
+    medical_system = None
+
+# Initialize scheduler for prescriptions
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+# Configure email settings for the prescription system
+MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
+MAILJET_SECRET_KEY = os.getenv('MAILJET_API_SECRET')
+FROM_EMAIL = 'anshul.saini1507@gmail.com'
+FROM_NAME = 'Medical Reminder'
 
 def init_session():
     """Initialize session variables if they don't exist"""
@@ -107,7 +73,7 @@ def format_conversation_history():
         return ""
     
     formatted_history = []
-    for exchange in session['conversation_history'][-5:]:  # Get last 5 exchanges
+    for exchange in session['conversation_history'][-5:]:
         formatted_history.append(f"User: {exchange['user']}")
         formatted_history.append(f"Assistant: {exchange['assistant']}")
     return "\n".join(formatted_history)
@@ -129,7 +95,82 @@ def process_pdf(file_path):
     chunks = text_splitter.split_documents(pages)
     return chunks
 
-# ---------- ROUTES ----------
+@app.route('/get', methods=["POST"])
+def get_response():
+    msg = request.form["msg"]
+    print("User input:", msg)
+    
+    try:
+        # Initialize session if needed
+        init_session()
+        
+        # Get conversation context
+        context = format_conversation_history()
+        
+        # Get user's health information
+        health_info = None
+        if 'user_id' in session and session['user_id'] != 'guest':
+            health_info = get_user_health(session['user_id'])
+        
+        # Get only the most recent document ID
+        recent_doc_id = None
+        if 'uploaded_docs' in session and session['uploaded_docs']:
+            recent_doc_id = session['uploaded_docs'][-1]
+        
+        # Configure retriever with document filter
+        search_kwargs = {"k": 3}  # Reduced from 5 to 3
+        if recent_doc_id:
+            search_kwargs["filter"] = {"doc_id": recent_doc_id}
+        
+        # Get retriever lazily
+        retriever = get_retriever(k=3)
+        
+        # Get question answer chain lazily
+        question_answer_chain = get_question_answer_chain()
+        
+        # Create retrieval chain
+        rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+        
+        # Get relevant documents from Pinecone
+        response = rag_chain.invoke({
+            "input": msg,
+            "context": context
+        })
+        answer = response["answer"]
+    
+        # Customize response based on user's health information
+        if health_info:
+            answer = customize_response(
+                answer,
+                symptoms=health_info.get('symptoms'),
+                diseases=health_info.get('diseases')
+            )
+        
+        print("Response:", answer)
+            
+        # Update conversation history in session
+        session['conversation_history'].append({
+            "user": msg,
+            "assistant": answer
+        })
+        
+        # Keep only last 5 exchanges
+        if len(session['conversation_history']) > 5:
+            session['conversation_history'] = session['conversation_history'][-5:]
+        
+        # Update current context
+        session['current_context'] = {
+            "last_question": msg,
+            "last_answer": answer
+        }
+        
+        # Ensure session changes are saved
+        session.modified = True
+        
+        return str(answer)
+    except Exception as e:
+        print("Error:", str(e))
+        return "I apologize, but I encountered an error while processing your question. Please try again."
 
 @app.route('/')
 def index():
@@ -143,18 +184,47 @@ def chat():
     if 'user_id' not in session:
         print("No user_id in session, redirecting to signin")  # Debug log
         return redirect(url_for('signin'))
+    
+    # Pre-load the model when entering chat
+    try:
+        # Initialize model components
+        print("Pre-loading model components...")
+        get_embeddings()
+        get_llm()
         
-    return render_template('chat.html')
+        print("Model components loaded successfully")
+        
+        # Set model_loaded flag in session
+        session['model_loaded'] = True
+        session.modified = True
+    except Exception as e:
+        print(f"Error pre-loading model: {str(e)}")
+        session['model_loaded'] = False
+        session.modified = True
+    
+    return render_template('chat2.html', model_loaded=session.get('model_loaded', False))
+
+
+@app.route('/chat-with-faq')
+def chat_with_faq():
+    print("Loading chat with FAQ buttons")  # Debug log
+    
+    # Allow both logged-in users and guests
+    if 'user_id' not in session:
+        print("No user_id in session, redirecting to signin")  # Debug log
+        return redirect(url_for('signin'))
+        
+    return render_template('chat2.html')
 
 @app.route('/main')
 def main():
     # Redirect to signin if not logged in
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-    return render_template('chat.html')
+    return render_template('chat2.html')
 
 @app.get("/signin")  # Add this route
-async def signin():
+def signin():
     return render_template("signin.html")
 
 @app.route('/signup', methods=['POST'])
@@ -240,88 +310,6 @@ def guest_login():
             'success': False,
             'message': str(e)
         }), 500
-
-@app.route('/get', methods=["POST"])
-def get_response():
-    msg = request.form["msg"]
-    print("User input:", msg)
-    
-    try:
-        # Initialize session if needed
-        init_session()
-        
-        # Get conversation context
-        context = format_conversation_history()
-        
-        # Get user's health information
-        health_info = None
-        if 'user_id' in session and session['user_id'] != 'guest':
-            health_info = get_user_health(session['user_id'])
-        
-        # Get only the most recent document ID
-        recent_doc_id = None
-        if 'uploaded_docs' in session and session['uploaded_docs']:
-            recent_doc_id = session['uploaded_docs'][-1]
-            print(f"Using most recent document ID: {recent_doc_id}")
-        
-        # Configure retriever with document filter
-        search_kwargs = {"k": 5}
-        if recent_doc_id:
-            search_kwargs["filter"] = {"doc_id": recent_doc_id}
-            print(f"Searching with filter: {search_kwargs}")
-        
-        # Update retriever with new search parameters
-        retriever = docsearch.as_retriever(
-            search_type="similarity",
-            search_kwargs=search_kwargs
-        )
-        
-        # Create new chain with updated retriever
-        rag_chain = create_retrieval_chain(
-            retriever,
-            question_answer_chain
-        )
-        
-        # Get relevant documents from Pinecone
-        response = rag_chain.invoke({
-            "input": msg,
-            "context": context
-        })
-        answer = response["answer"]
-    
-        # Customize response based on user's health information
-        if health_info:
-            answer = customize_response(
-                answer,
-                symptoms=health_info.get('symptoms'),
-                diseases=health_info.get('diseases')
-            )
-        
-        print("Response:", answer)
-            
-            # Update conversation history in session
-        session['conversation_history'].append({
-                "user": msg,
-                "assistant": answer
-            })
-            
-            # Keep only last 5 exchanges
-        if len(session['conversation_history']) > 5:
-                session['conversation_history'] = session['conversation_history'][-5:]
-            
-            # Update current context
-        session['current_context'] = {
-                "last_question": msg,
-                "last_answer": answer
-            }
-        
-        # Ensure session changes are saved
-        session.modified = True
-        
-        return str(answer)
-    except Exception as e:
-        print("Error:", str(e))
-        return "I apologize, but I encountered an error while processing your question. Please try again."
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -521,7 +509,7 @@ Format exactly as shown with these headings and emoji markers."""),
 
             For each report section (like Hemoglobin, WBC, Platelets, etc.), give a **1–2 line explanation** of what the value means, whether it's high, low, or normal, and what it might indicate. Use only actual numbers from the report — **do not add list numbers (1, 2, 3, etc.)**. You may include percentages if they appear in the report.
 
-            At the end, write a short and easy-to-understand **overall summary** combining everything. Be conversational and human, like you’re gently explaining to someone with no medical background.
+            At the end, write a short and easy-to-understand **overall summary** combining everything. Be conversational and human, like you're gently explaining to someone with no medical background.
 
             Keep everything simple, clear, and non-alarming. Avoid medical jargon unless absolutely necessary. use total less than 120 words
             """),
@@ -633,11 +621,196 @@ def find_medical_help():
             'message': f'An error occurred while finding medical help: {str(e)}'
         }), 500
 
+@app.route('/get_random_tips', methods=['GET'])
+def get_random_tips():
+    """Endpoint to get 5 random medical tips from general_help.txt"""
+    try:
+        # Read tips from general_help.txt with UTF-8 encoding
+        with open('general_help.txt', 'r', encoding='utf-8') as file:
+            all_tips = file.readlines()
+        
+        # Clean up tips (remove line numbers and strip whitespace)
+        cleaned_tips = []
+        for tip in all_tips:
+            # Extract the text after the number and period
+            if '.' in tip:
+                tip_text = tip.split('.', 1)[1].strip()
+                cleaned_tips.append(tip_text)
+        
+        # Select 5 random tips
+        import random
+        random_tips = random.sample(cleaned_tips, 5)
+        
+        return jsonify({
+            'success': True,
+            'tips': random_tips
+        })
+    
+    except Exception as e:
+        print(f"Error getting random tips: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Optional: Route to start the Flask app as a subprocess
 @app.route('/start-app')
 def start_app():
     subprocess.Popen(["python", "app.py"], shell=True)
     return "App started", 200
 
+# ---------- PRESCRIPTION ROUTES ----------
+
+def send_mailjet_email(email, medicine):
+    """Send medication reminder email using Mailjet API."""
+    time_now = datetime.now().strftime("%I:%M %p")  # 12-hour format with AM/PM
+    
+    # Use a more spam-filter friendly subject line without special characters
+    subject = f"Health Reminder: {medicine['name']} - {time_now}"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Health Reminder</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; background-color: #f9f9f9;">
+            <h2 style="color: #3f51b5; margin-top: 0;">Health Reminder</h2>
+            <p>Hello,</p>
+            <p>This is your scheduled reminder about your health routine:</p>
+            <div style="background-color: #fff; border-left: 4px solid #3f51b5; padding: 15px; margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>Medication:</strong> {medicine['name']}</p>
+                <p style="margin: 5px 0;"><strong>Dosage:</strong> {medicine['dosage']}</p>
+                <p style="margin: 5px 0;"><strong>Time:</strong> {time_now}</p>
+            </div>
+            <p>Taking your medication as directed by your healthcare provider is important for your wellbeing.</p>
+            <p>Best regards,<br>Your Healthcare Team</p>
+            <p style="font-size: 13px; color: #555;">
+                <strong>Important:</strong> If you're seeing this email in your spam folder, please mark it as "Not Spam" 
+                and add {FROM_EMAIL} to your contacts to ensure you receive future reminders.
+            </p>
+        </div>
+        <p style="font-size: 12px; color: #777; margin-top: 20px;">
+            This is an automated reminder from your healthcare application. To unsubscribe or modify your reminder settings, 
+            please visit our app or reply to this email with "STOP".
+            <br><br>
+            <a href="mailto:{FROM_EMAIL}" style="color: #3f51b5; text-decoration: none;">Contact Support</a>
+        </p>
+    </body>
+    </html>
+    """
+
+    text_part = f"""
+    HEALTH REMINDER
+    
+    Hello,
+    
+    This is your scheduled reminder about your health routine:
+    
+    Medication: {medicine['name']}
+    Dosage: {medicine['dosage']}
+    Time: {time_now}
+    
+    Taking your medication as directed by your healthcare provider is important for your wellbeing.
+    
+    Best regards,
+    Your Healthcare Team
+    
+    Important: If you're seeing this email in your spam folder, please mark it as "Not Spam" 
+    and add {FROM_EMAIL} to your contacts to ensure you receive future reminders.
+    
+    ---
+    This is an automated reminder from your healthcare application. To unsubscribe or modify your reminder settings, 
+    please visit our app or reply to this email with "STOP".
+    """
+
+    url = "https://api.mailjet.com/v3.1/send"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "Messages": [
+            {
+                "From": {
+                    "Email": FROM_EMAIL,
+                    "Name": FROM_NAME
+                },
+                "To": [
+                    {
+                        "Email": email,
+                        "Name": "Patient"
+                    }
+                ],
+                "Subject": subject,
+                "HTMLPart": html_body,
+                "TextPart": text_part,  # Added plain text alternative
+                "Headers": {
+                    "List-Unsubscribe": f"<mailto:{FROM_EMAIL}?subject=unsubscribe>",
+                    "Precedence": "bulk",
+                    "X-Auto-Response-Suppress": "OOF, AutoReply"
+                },
+                "CustomID": f"MedReminder-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "CustomCampaign": "MedicationReminders"
+            }
+        ]
+    }
+
+    print(f"📤 Sending reminder to {email}...")
+    response = requests.post(url, auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), headers=headers, json=payload)
+
+    try:
+        response_data = response.json()
+    except json.JSONDecodeError:
+        print("❌ Failed to parse JSON response:")
+        print(response.text)
+        return
+
+    if response.status_code == 200:
+        print("✅ Email sent successfully!")
+        print("📨 Message ID(s):", [m.get('To')[0].get('MessageUUID') for m in response_data.get('Messages', [])])
+    else:
+        print(f"❌ Failed to send email. Status Code: {response.status_code}")
+        print("🔧 Response:", response_data)
+
+@app.route('/prescription')
+def prescription_page():
+    """Return the prescription.html template"""
+    return render_template('prescription.html')
+
+@app.route('/api/schedule', methods=['POST'])
+def schedule_reminders():
+    """API endpoint to schedule medication reminders"""
+    data = request.get_json()
+    email = data['email']
+    
+    for medicine in data['medicines']:
+        start_time = datetime.strptime(medicine['time'], '%H:%M')
+        
+        # Schedule for each day of treatment
+        for day in range(medicine['days']):
+            trigger_time = datetime.now().replace(
+                hour=start_time.hour,
+                minute=start_time.minute
+            ) + timedelta(days=day)
+            
+            # Reschedule if time has passed today
+            if trigger_time < datetime.now():
+                trigger_time += timedelta(days=1)
+            
+            scheduler.add_job(
+                send_mailjet_email,
+                'date',
+                run_date=trigger_time,
+                args=[email, medicine]
+            )
+            print(f"⏰ Scheduled email for '{medicine['name']}' at {trigger_time}")
+    
+    print("🧠 All current jobs in scheduler:")
+    for job in scheduler.get_jobs():
+        print(job)
+    
+    return jsonify({'status': 'success', 'message': 'Reminders scheduled successfully!'})
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, use_reloader=False)

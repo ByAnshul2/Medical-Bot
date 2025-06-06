@@ -6,10 +6,12 @@ from werkzeug.utils import secure_filename
 import tempfile
 import uuid
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 import requests
 from places import MedicalPlacesSystem  # Add this import
+from apscheduler.schedulers.background import BackgroundScheduler
+import json
 
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -35,7 +37,7 @@ load_dotenv()
 
 # Retrieve API keys from environment variables
 PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
-TOGETHER_API_KEY = os.environ.get('TOGETHER_API_KEY')
+TOGETHER_API_KEY = os.environ.get('TOGETHER_API_KEY2')
 
 # Ensure keys are available for libraries
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
@@ -94,6 +96,16 @@ except Exception as e:
     print(f"Full traceback: {traceback.format_exc()}")
     medical_system = None  # Explicitly set to None on failure
 
+# Initialize scheduler for prescriptions
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+# Configure email settings for the prescription system
+MAILJET_API_KEY = os.getenv('MAILJET_API_KEY')
+MAILJET_SECRET_KEY = os.getenv('MAILJET_API_SECRET')
+FROM_EMAIL = 'anshul.saini1507@gmail.com'  # Make sure this email is verified with Mailjet
+FROM_NAME = 'Medical Reminder'  # Changed from "Prescription System" to avoid spam triggers
+
 def init_session():
     """Initialize session variables if they don't exist"""
     if 'conversation_history' not in session:
@@ -129,6 +141,52 @@ def process_pdf(file_path):
     chunks = text_splitter.split_documents(pages)
     return chunks
 
+# Add this function after the imports and before the routes
+def is_medical_query(query):
+    """Check if the query is related to medical or health topics"""
+    # List of medical-related keywords and topics
+    medical_keywords = [
+        'health', 'medical', 'doctor', 'hospital', 'disease', 'symptom', 
+        'treatment', 'medicine', 'patient', 'diagnosis', 'therapy', 
+        'surgery', 'clinic', 'nurse', 'pharmacy', 'prescription', 'pain',
+        'illness', 'condition', 'disorder', 'infection', 'virus', 'bacteria',
+        'vaccine', 'vaccination', 'checkup', 'examination', 'test', 'scan',
+        'x-ray', 'mri', 'ct', 'blood', 'pressure', 'heart', 'lung', 'brain',
+        'bone', 'muscle', 'joint', 'skin', 'eye', 'ear', 'nose', 'throat',
+        'dental', 'mental', 'psychological', 'cancer', 'diabetes', 'asthma',
+        'allergy', 'fever', 'cold', 'flu', 'covid', 'coronavirus', 'pandemic',
+        'epidemic', 'outbreak', 'emergency', 'ambulance', 'paramedic', 'first aid',
+        'recovery', 'rehabilitation', 'physiotherapy', 'occupational therapy',
+        'diet', 'nutrition', 'exercise', 'fitness', 'wellness', 'prevention',
+        'vaccination', 'immunization', 'antibiotic', 'antiviral', 'medication',
+        'dosage', 'side effect', 'complication', 'prognosis', 'remission',
+        'chronic', 'acute', 'terminal', 'palliative', 'hospice', 'mortality',
+        'morbidity', 'epidemiology', 'pathology', 'anatomy', 'physiology',
+        'biochemistry', 'genetics', 'immunology', 'microbiology', 'pharmacology',
+        'toxicology', 'radiology', 'ultrasound', 'endoscopy', 'biopsy',
+        'transplant', 'prosthesis', 'implant', 'pacemaker', 'defibrillator',
+        'dialysis', 'chemotherapy', 'radiation', 'hormone', 'steroid', 'insulin',
+        'antidepressant', 'antipsychotic', 'anesthetic', 'analgesic', 'antacid',
+        'antihistamine', 'decongestant', 'expectorant', 'laxative', 'diuretic',
+        'anticoagulant', 'anticonvulsant', 'antifungal', 'antimalarial',
+        'antiretroviral', 'antitubercular', 'antiviral', 'antibacterial',
+        'antiseptic', 'disinfectant', 'sanitizer', 'mask', 'glove', 'gown',
+        'syringe', 'needle', 'catheter', 'stent', 'suture', 'bandage', 'plaster',
+        'cast', 'brace', 'crutch', 'wheelchair', 'walker', 'cane', 'prosthesis',
+        'hearing aid', 'glasses', 'contact lens', 'denture', 'pacemaker',
+        'defibrillator', 'insulin pump', 'cpap', 'ventilator', 'dialysis machine',
+        'mri machine', 'ct scanner', 'x-ray machine', 'ultrasound machine',
+        'endoscope', 'colonoscope', 'laparoscope', 'arthroscope', 'bronchoscope',
+        'cystoscope', 'gastroscope', 'hysteroscope', 'laryngoscope', 'otoscope',
+        'proctoscope', 'sigmoidoscope', 'thoracoscope', 'ureteroscope'
+    ]
+    
+    # Convert query to lowercase for case-insensitive matching
+    query_lower = query.lower()
+    
+    # Check if query contains any medical keywords
+    return any(keyword in query_lower for keyword in medical_keywords)
+
 # ---------- ROUTES ----------
 
 @app.route('/')
@@ -146,6 +204,17 @@ def chat():
         
     return render_template('chat.html')
 
+@app.route('/chat-with-faq')
+def chat_with_faq():
+    print("Loading chat with FAQ buttons")  # Debug log
+    
+    # Allow both logged-in users and guests
+    if 'user_id' not in session:
+        print("No user_id in session, redirecting to signin")  # Debug log
+        return redirect(url_for('signin'))
+        
+    return render_template('chat.html')
+
 @app.route('/main')
 def main():
     # Redirect to signin if not logged in
@@ -154,7 +223,7 @@ def main():
     return render_template('chat.html')
 
 @app.get("/signin")  # Add this route
-async def signin():
+def signin():
     return render_template("signin.html")
 
 @app.route('/signup', methods=['POST'])
@@ -276,6 +345,30 @@ def get_response():
             search_kwargs=search_kwargs
         )
         
+        # First, try to get relevant documents from Pinecone
+        try:
+            relevant_docs = retriever.get_relevant_documents(msg)
+            
+            # Check if we found any relevant medical documents
+            if not relevant_docs:
+                return "I apologize, but I am a medical assistant and can only provide information related to health and medical topics. Please ask me about medical or health-related questions."
+            
+            # Check if the documents are actually medical-related
+            medical_content_found = False
+            for doc in relevant_docs:
+                # Check if the document content contains medical-related terms
+                content = doc.page_content.lower()
+                if any(term in content for term in ['medical', 'health', 'disease', 'treatment', 'symptom', 'diagnosis', 'patient', 'doctor', 'hospital', 'medicine', 'therapy']):
+                    medical_content_found = True
+                    break
+            
+            if not medical_content_found:
+                return "I apologize, but I am a medical assistant and can only provide information related to health and medical topics. Please ask me about medical or health-related questions."
+            
+        except Exception as e:
+            print(f"Error retrieving documents: {str(e)}")
+            return "I apologize, but I am a medical assistant and can only provide information related to health and medical topics. Please ask me about medical or health-related questions."
+        
         # Create new chain with updated retriever
         rag_chain = create_retrieval_chain(
             retriever,
@@ -288,6 +381,10 @@ def get_response():
             "context": context
         })
         answer = response["answer"]
+        
+        # Additional check to ensure the response is medical-related
+        if not any(term in answer.lower() for term in ['medical', 'health', 'disease', 'treatment', 'symptom', 'diagnosis', 'patient', 'doctor', 'hospital', 'medicine', 'therapy']):
+            return "I apologize, but I am a medical assistant and can only provide information related to health and medical topics. Please ask me about medical or health-related questions."
     
         # Customize response based on user's health information
         if health_info:
@@ -299,21 +396,21 @@ def get_response():
         
         print("Response:", answer)
             
-            # Update conversation history in session
+        # Update conversation history in session
         session['conversation_history'].append({
-                "user": msg,
-                "assistant": answer
-            })
+            "user": msg,
+            "assistant": answer
+        })
             
-            # Keep only last 5 exchanges
+        # Keep only last 5 exchanges
         if len(session['conversation_history']) > 5:
-                session['conversation_history'] = session['conversation_history'][-5:]
+            session['conversation_history'] = session['conversation_history'][-5:]
             
-            # Update current context
+        # Update current context
         session['current_context'] = {
-                "last_question": msg,
-                "last_answer": answer
-            }
+            "last_question": msg,
+            "last_answer": answer
+        }
         
         # Ensure session changes are saved
         session.modified = True
@@ -483,42 +580,63 @@ def get_summary():
         # Combine the chunks into a single text
         content = "\n".join([doc.page_content for doc in results])
         
-        # Create a medical analysis prompt based on document content
-        if any(keyword in content.lower() for keyword in ['covid', 'sars-cov-2', 'rt-pcr']):
-            # COVID report analysis
-            summary_prompt = ChatPromptTemplate.from_messages([
-                ("system", """Patient name, test date, result (positive/negative), and key recommendations in 2-3 lines."""),
-                ("human", "Analyze this COVID-19 report:\n\n{content}")
-            ])
-        elif any(keyword in content.lower() for keyword in ['cbc', 'hemoglobin', 'wbc', 'rbc', 'platelets']):
-            # CBC report analysis
-            summary_prompt = ChatPromptTemplate.from_messages([
-                ("system", """Patient name, test date, and any abnormal values that need attention in 2-3 lines."""),
-                ("human", "Analyze this blood test report:\n\n{content}")
-            ])
-        elif any(keyword in content.lower() for keyword in ['prescription', 'rx', 'tablet', 'capsule', 'mg']):
-            # Prescription analysis
-            summary_prompt = ChatPromptTemplate.from_messages([
-                ("system", """Key medications prescribed and their primary purpose in 2-3 lines."""),
-                ("human", "Analyze this prescription:\n\n{content}")
-            ])
-        else:
-            # General medical document analysis
-            summary_prompt = ChatPromptTemplate.from_messages([
-                ("system", """Main content and purpose in 1-2 lines."""),
-                ("human", "Analyze this medical document:\n\n{content}")
-            ])
+        # Create a comprehensive medical analysis including treatment and precautions
+        comprehensive_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a medical assistant AI analyzing a medical report. Provide a comprehensive analysis in this EXACT format with emoji markers (no substitutions):
+
+🔹 **Medical Summary**:  
+<3-4 line summary of key findings in simple, clear language that states what values are high/low/normal and concludes with positive/negative health outcome>
+
+🔹 **Probable Medical Condition(s)**:  
+<Specific conditions suggested by the test results>
+
+🔹 **Recommended Treatment Options**:  
+<2-3 treatments or procedures with brief explanations>
+
+🔹 **Precautions & Lifestyle Advice**:  
+<2-3 practical tips tailored to the findings>
+
+Format exactly as shown with these headings and emoji markers."""),
+            ("human", "Analyze this medical document and provide a comprehensive assessment:\n\n{content}")
+        ])
         
-        # Generate summary
-        summary_chain = summary_prompt | llm
-        summary_response = summary_chain.invoke({
+        # Generate comprehensive analysis
+        comprehensive_chain = comprehensive_prompt | llm
+        comprehensive_response = comprehensive_chain.invoke({
             "content": content
         })
         
-        print(f"Generated medical analysis: {summary_response.content}")
+        # Get response content
+        comprehensive_content = comprehensive_response.content
+        
+        print(f"Comprehensive analysis: {comprehensive_content[:100]}...")
+        print(type(comprehensive_content))
+        
+        # For backwards compatibility, generate a brief summary too
+        summary_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a helpful and friendly medical AI assistant. Given a medical report, respond clearly and simply.
+
+            For each report section (like Hemoglobin, WBC, Platelets, etc.), give a **1–2 line explanation** of what the value means, whether it's high, low, or normal, and what it might indicate. Use only actual numbers from the report — **do not add list numbers (1, 2, 3, etc.)**. You may include percentages if they appear in the report.
+
+            At the end, write a short and easy-to-understand **overall summary** combining everything. Be conversational and human, like you're gently explaining to someone with no medical background.
+
+            Keep everything simple, clear, and non-alarming. Avoid medical jargon unless absolutely necessary. use total less than 120 words
+            """),
+            ("human", "Give the final response in paragraph a :\n\n{content}")
+        ])
+        
+        summary_chain = summary_prompt | llm
+        summary_response = summary_chain.invoke({
+            "content": comprehensive_content
+        })
+        
+        summary_content = summary_response.content
+        print(type(summary_content))
         
         return jsonify({
-            'summary': summary_response.content
+            'summary': summary_content,
+            'comprehensive_analysis': comprehensive_content
+            
         }), 200
         
     except Exception as e:
@@ -612,11 +730,196 @@ def find_medical_help():
             'message': f'An error occurred while finding medical help: {str(e)}'
         }), 500
 
+@app.route('/get_random_tips', methods=['GET'])
+def get_random_tips():
+    """Endpoint to get 5 random medical tips from general_help.txt"""
+    try:
+        # Read tips from general_help.txt
+        with open('general_help.txt', 'r') as file:
+            all_tips = file.readlines()
+        
+        # Clean up tips (remove line numbers and strip whitespace)
+        cleaned_tips = []
+        for tip in all_tips:
+            # Extract the text after the number and period
+            if '.' in tip:
+                tip_text = tip.split('.', 1)[1].strip()
+                cleaned_tips.append(tip_text)
+        
+        # Select 5 random tips
+        import random
+        random_tips = random.sample(cleaned_tips, 5)
+        
+        return jsonify({
+            'success': True,
+            'tips': random_tips
+        })
+    
+    except Exception as e:
+        print(f"Error getting random tips: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Optional: Route to start the Flask app as a subprocess
 @app.route('/start-app')
 def start_app():
     subprocess.Popen(["python", "app.py"], shell=True)
     return "App started", 200
 
+# ---------- PRESCRIPTION ROUTES ----------
+
+def send_mailjet_email(email, medicine):
+    """Send medication reminder email using Mailjet API."""
+    time_now = datetime.now().strftime("%I:%M %p")  # 12-hour format with AM/PM
+    
+    # Use a more spam-filter friendly subject line without special characters
+    subject = f"Health Reminder: {medicine['name']} - {time_now}"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Health Reminder</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; background-color: #f9f9f9;">
+            <h2 style="color: #3f51b5; margin-top: 0;">Health Reminder</h2>
+            <p>Hello,</p>
+            <p>This is your scheduled reminder about your health routine:</p>
+            <div style="background-color: #fff; border-left: 4px solid #3f51b5; padding: 15px; margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>Medication:</strong> {medicine['name']}</p>
+                <p style="margin: 5px 0;"><strong>Dosage:</strong> {medicine['dosage']}</p>
+                <p style="margin: 5px 0;"><strong>Time:</strong> {time_now}</p>
+            </div>
+            <p>Taking your medication as directed by your healthcare provider is important for your wellbeing.</p>
+            <p>Best regards,<br>Your Healthcare Team</p>
+            <p style="font-size: 13px; color: #555;">
+                <strong>Important:</strong> If you're seeing this email in your spam folder, please mark it as "Not Spam" 
+                and add {FROM_EMAIL} to your contacts to ensure you receive future reminders.
+            </p>
+        </div>
+        <p style="font-size: 12px; color: #777; margin-top: 20px;">
+            This is an automated reminder from your healthcare application. To unsubscribe or modify your reminder settings, 
+            please visit our app or reply to this email with "STOP".
+            <br><br>
+            <a href="mailto:{FROM_EMAIL}" style="color: #3f51b5; text-decoration: none;">Contact Support</a>
+        </p>
+    </body>
+    </html>
+    """
+
+    text_part = f"""
+    HEALTH REMINDER
+    
+    Hello,
+    
+    This is your scheduled reminder about your health routine:
+    
+    Medication: {medicine['name']}
+    Dosage: {medicine['dosage']}
+    Time: {time_now}
+    
+    Taking your medication as directed by your healthcare provider is important for your wellbeing.
+    
+    Best regards,
+    Your Healthcare Team
+    
+    Important: If you're seeing this email in your spam folder, please mark it as "Not Spam" 
+    and add {FROM_EMAIL} to your contacts to ensure you receive future reminders.
+    
+    ---
+    This is an automated reminder from your healthcare application. To unsubscribe or modify your reminder settings, 
+    please visit our app or reply to this email with "STOP".
+    """
+
+    url = "https://api.mailjet.com/v3.1/send"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "Messages": [
+            {
+                "From": {
+                    "Email": FROM_EMAIL,
+                    "Name": FROM_NAME
+                },
+                "To": [
+                    {
+                        "Email": email,
+                        "Name": "Patient"
+                    }
+                ],
+                "Subject": subject,
+                "HTMLPart": html_body,
+                "TextPart": text_part,  # Added plain text alternative
+                "Headers": {
+                    "List-Unsubscribe": f"<mailto:{FROM_EMAIL}?subject=unsubscribe>",
+                    "Precedence": "bulk",
+                    "X-Auto-Response-Suppress": "OOF, AutoReply"
+                },
+                "CustomID": f"MedReminder-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "CustomCampaign": "MedicationReminders"
+            }
+        ]
+    }
+
+    print(f"📤 Sending reminder to {email}...")
+    response = requests.post(url, auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), headers=headers, json=payload)
+
+    try:
+        response_data = response.json()
+    except json.JSONDecodeError:
+        print("❌ Failed to parse JSON response:")
+        print(response.text)
+        return
+
+    if response.status_code == 200:
+        print("✅ Email sent successfully!")
+        print("📨 Message ID(s):", [m.get('To')[0].get('MessageUUID') for m in response_data.get('Messages', [])])
+    else:
+        print(f"❌ Failed to send email. Status Code: {response.status_code}")
+        print("🔧 Response:", response_data)
+
+@app.route('/prescription')
+def prescription_page():
+    """Return the prescription.html template"""
+    return render_template('prescription.html')
+
+@app.route('/api/schedule', methods=['POST'])
+def schedule_reminders():
+    """API endpoint to schedule medication reminders"""
+    data = request.get_json()
+    email = data['email']
+    
+    for medicine in data['medicines']:
+        start_time = datetime.strptime(medicine['time'], '%H:%M')
+        
+        # Schedule for each day of treatment
+        for day in range(medicine['days']):
+            trigger_time = datetime.now().replace(
+                hour=start_time.hour,
+                minute=start_time.minute
+            ) + timedelta(days=day)
+            
+            # Reschedule if time has passed today
+            if trigger_time < datetime.now():
+                trigger_time += timedelta(days=1)
+            
+            scheduler.add_job(
+                send_mailjet_email,
+                'date',
+                run_date=trigger_time,
+                args=[email, medicine]
+            )
+            print(f"⏰ Scheduled email for '{medicine['name']}' at {trigger_time}")
+    
+    print("🧠 All current jobs in scheduler:")
+    for job in scheduler.get_jobs():
+        print(job)
+    
+    return jsonify({'status': 'success', 'message': 'Reminders scheduled successfully!'})
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, use_reloader=False)

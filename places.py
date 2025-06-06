@@ -341,7 +341,7 @@ class MedicalPlacesSystem:
             from dotenv import load_dotenv
             
             load_dotenv()
-            TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY')
+            TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY2')
             
             url = "https://api.together.xyz/v1/chat/completions"
             headers = {
@@ -350,7 +350,9 @@ class MedicalPlacesSystem:
             }
             
             prompt = f"""Please format this medical recommendation to be concise, clear, and user-friendly. 
-            Keep the emojis and stars, maintain the spacing, and ensure it's easy to read:
+            Avoid using Markdown formatting like **bold**, __italic__, or backticks.
+            Keep the emojis and stars, maintain proper spacing that make it look good, and ensure it's easy to read: 
+            you can highlight the important points and make it more user-friendly.
 
             {initial_response}"""
             
